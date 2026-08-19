@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Register - CodeGuardian AI{% endblock %}
+
+{% block content %}
+<div class="row align-items-center justify-content-center py-4 g-5">
+  <!-- Left Side: Interactive Feature Showcase Hero -->
+  <div class="col-lg-6 d-none d-lg-block animate-fade-in">
+    <div class="pe-lg-4">
+      <div class="badge bg-powder-soft text-info px-3 py-2 rounded-pill fw-bold mb-3 float-element">
+        <i class="bi bi-shield-check me-1"></i> Create an Account
+      </div>
+      <h1 class="display-5 fw-extrabold text-dark mb-3">
+        Improve your code quality <span class="text-success">automatically</span>
+      </h1>
+      <p class="text-muted fs-6 mb-4 leading-relaxed">
+        Join us to quickly scan your repositories, find bugs, and fix them with one click.
+      </p>
+
+      <!-- Key Benefits List -->
+      <div class="d-flex flex-column gap-3">
+        <div class="d-flex align-items-start gap-3 p-3 bg-surface border border-card rounded-4">
+          <div class="bg-sage-soft rounded-circle p-2 text-success">
+            <i class="bi bi-check-lg fs-5"></i>
+          </div>
+          <div>
+            <h6 class="fw-bold text-dark mb-0">Smart & Reliable Analysis</h6>
+            <p class="text-muted small mb-0">Get accurate and trustworthy feedback on your code.</p>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-start gap-3 p-3 bg-surface border border-card rounded-4">
+          <div class="bg-powder-soft rounded-circle p-2 text-info">
+            <i class="bi bi-check-lg fs-5"></i>
+          </div>
+          <div>
+            <h6 class="fw-bold text-dark mb-0">Always Improving</h6>
+            <p class="text-muted small mb-0">Our fixes are guaranteed to make your code better, never worse.</p>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-start gap-3 p-3 bg-surface border border-card rounded-4">
+          <div class="bg-sage-soft rounded-circle p-2 text-success">
+            <i class="bi bi-check-lg fs-5"></i>
+          </div>
+          <div>
+            <h6 class="fw-bold text-dark mb-0">Works Where You Work</h6>
+            <p class="text-muted small mb-0">Analyze your code in multiple languages with just one click.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Interactive Registration Form -->
+  <div class="col-md-8 col-lg-5 animate-fade-in delay-100">
+    <div class="card card-custom p-4 p-md-5 shadow-lg border-card">
+      <div class="text-center mb-4">
+        <div class="brand-icon mx-auto bg-sage-soft text-success rounded-circle p-3 d-inline-flex align-items-center justify-content-center mb-3 float-element" style="width:72px; height:72px;">
+          <i class="bi bi-person-plus-fill fs-1"></i>
+        </div>
+        <h3 class="fw-extrabold text-dark mb-1">Create Account</h3>
+        <p class="text-muted small">Welcome to CodeGuardian</p>
+      </div>
+
+      <div id="alertBox"></div>
+
+      <form id="registerForm">
+        <!-- Username Input -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark">Username *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-beige-soft border-card"><i class="bi bi-person text-muted"></i></span>
+            <input type="text" id="regUsername" class="form-control" required placeholder="Choose a username">
+          </div>
+        </div>
+
+        <!-- Email Input -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark">Email Address (Optional)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-beige-soft border-card"><i class="bi bi-envelope text-muted"></i></span>
+            <input type="email" id="regEmail" class="form-control" placeholder="developer@example.com">
+          </div>
+        </div>
+
+        <!-- Password Input with Strength Meter -->
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark">Password *</label>
+          <div class="input-group">
+            <span class="input-group-text bg-beige-soft border-card"><i class="bi bi-lock text-muted"></i></span>
+            <input type="password" id="regPassword" class="form-control" required placeholder="Create strong password">
+            <button class="btn btn-outline-custom border-card px-3" type="button" id="toggleRegPasswordBtn">
+              <i class="bi bi-eye text-muted" id="toggleRegPasswordIcon"></i>
+            </button>
+          </div>
+
+          <!-- Password Strength Bar -->
+          <div class="mt-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="text-muted small">Password Strength:</span>
+              <span id="strengthText" class="fw-bold small text-muted">Too Short</span>
+            </div>
+            <div class="strength-bar-container">
+              <div id="strengthBar" class="strength-bar bg-danger"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="regSubmitBtn" class="btn btn-primary-custom w-100 py-3 mb-3 fw-bold text-uppercase fs-6">
+          <i class="bi bi-check-circle me-2"></i> Create Account
+        </button>
+
+        <div class="text-center text-muted small">
+          Already have an account? <a href="/login/" class="text-success text-decoration-none fw-bold">Sign in here</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const registerForm = document.getElementById('registerForm');
+  const alertBox = document.getElementById('alertBox');
+  const passwordInput = document.getElementById('regPassword');
+  const togglePasswordBtn = document.getElementById('toggleRegPasswordBtn');
+  const togglePasswordIcon = document.getElementById('toggleRegPasswordIcon');
+  const strengthBar = document.getElementById('strengthBar');
+  const strengthText = document.getElementById('strengthText');
+  const submitBtn = document.getElementById('regSubmitBtn');
+
+  // Toggle Password Visibility
+  togglePasswordBtn.addEventListener('click', () => {
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    togglePasswordIcon.className = isPassword ? 'bi bi-eye-slash text-success' : 'bi bi-eye text-muted';
+  });
+
+  // Password Strength Meter
+  passwordInput.addEventListener('input', () => {
+    const val = passwordInput.value;
+    let score = 0;
+    if (val.length >= 6) score += 25;
+    if (val.length >= 10) score += 25;
+    if (/[A-Z]/.test(val)) score += 25;
+    if (/[0-9!@#$%^&*]/.test(val)) score += 25;
+
+    strengthBar.style.width = `${score}%`;
+    if (score <= 25) {
+      strengthBar.className = 'strength-bar bg-danger';
+      strengthText.innerText = 'Weak';
+      strengthText.className = 'fw-bold small text-danger';
+    } else if (score <= 75) {
+      strengthBar.className = 'strength-bar bg-warning';
+      strengthText.innerText = 'Medium';
+      strengthText.className = 'fw-bold small text-warning';
+    } else {
+      strengthBar.className = 'strength-bar bg-success';
+      strengthText.innerText = 'Strong';
+      strengthText.className = 'fw-bold small text-success';
+    }
+  });
+
+  // Register Form Submit Handler
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = '';
+    
+    const data = {
+      username: document.getElementById('regUsername').value.trim(),
+      email: document.getElementById('regEmail').value.trim(),
+      password: document.getElementById('regPassword').value.trim()
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i> Creating Account...';
+
+    try {
+      const res = await API.register(data);
+      if (res.user) {
+        // Auto login after registration
+        const loginRes = await API.login(data.username, data.password);
+        if (loginRes.access) {
+          alertBox.innerHTML = '<div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i> Registration successful! Redirecting to Dashboard...</div>';
+          setTimeout(() => { window.location.href = '/dashboard/'; }, 800);
+        } else {
+          alertBox.innerHTML = '<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i> Registration successful, but auto-login failed. Please login manually.</div>';
+          setTimeout(() => { window.location.href = '/login/'; }, 1500);
+        }
+      } else {
+        alertBox.innerHTML = `<div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i> ${res.error || 'Registration failed'}</div>`;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i> Create Account';
+      }
+    } catch (err) {
+      alertBox.innerHTML = '<div class="alert alert-danger py-2">Error connecting to registration server.</div>';
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i> Create Account';
+    }
+  });
+});
+</script>
+{% endblock %}

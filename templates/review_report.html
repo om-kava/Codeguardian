@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Review Report v{{ review.version }} - {{ review.project.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+  <div>
+    <div class="mb-1">
+      <a href="/projects/{{ review.project.id }}/" class="text-muted text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i> Back to {{ review.project.name }}
+      </a>
+    </div>
+    <h2 class="fw-extrabold mb-1">
+      <i class="bi bi-shield-check text-success me-2"></i>Code Review Report: <span class="text-primary">{{ review.filename }}</span>
+    </h2>
+    <p class="text-muted mb-0">Project: <strong>{{ review.project.name }}</strong> &bull; Version: <strong>v{{ review.version }}</strong> &bull; Analyzed on {{ review.created_at|date:"M d, Y H:i" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/reviews/studio/?project={{ review.project.id }}" class="btn btn-powder-blue px-3">
+      <i class="bi bi-cpu me-1"></i> Open in Fix Studio
+    </a>
+    <button id="resubmitBtn" class="btn btn-primary-custom px-4 shadow">
+      <i class="bi bi-magic me-1"></i> Apply AI Fix & Resubmit (v{{ review.version|add:1 }})
+    </button>
+  </div>
+</div>
+
+<!-- Improved Score Toast Alert -->
+<div id="improvedBanner" class="alert alert-success card-custom border-success p-3 mb-4 d-none">
+  <div class="d-flex align-items-center justify-content-between">
+    <div>
+      <i class="bi bi-stars text-warning fs-4 me-2"></i>
+      <strong class="fs-6">AI Refactoring Applied!</strong>
+      <span class="ms-2">Code re-analyzed cleanly. Quality Score updated to <strong class="text-success fs-5">{{ review.quality_score }}</strong> (Grade {{ review.letter_grade }}).</span>
+    </div>
+    <a href="/reviews/compare/?review1={{ other_reviews.0.id|default:review.id }}&review2={{ review.id }}" class="btn btn-sm btn-success rounded-pill px-3">
+      View Version Delta <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+  </div>
+</div>
+
+<!-- Key Score Header Banner -->
+<div class="card card-custom p-4 mb-4">
+  <div class="row align-items-center">
+    <div class="col-md-3 text-center border-end border-card py-2">
+      <div class="text-muted small text-uppercase fw-bold mb-2">Quality Score</div>
+      <div class="d-flex align-items-center justify-content-center gap-3">
+        <div class="display-3 fw-extrabold {% if review.quality_score >= 80 %}text-success{% elif review.quality_score >= 60 %}text-warning{% else %}text-danger{% endif %}">
+          {{ review.quality_score }}
+        </div>
+        <div class="grade-badge grade-{{ review.letter_grade }}">
+          {{ review.letter_grade }}
+        </div>
+      </div>
+      <div class="text-muted small mt-1">Grade {{ review.letter_grade }} Code Rating</div>
+    </div>
+
+    <!-- AI Summary -->
+    <div class="col-md-6 border-end border-card py-2 px-4">
+      <h6 class="fw-bold text-dark mb-2"><i class="bi bi-robot text-success me-2"></i>Gemini AI Executive Summary</h6>
+      <p class="text-muted small mb-0 line-clamp-3">
+        {{ review.summary|default:"Static analysis complete. Review findings below to improve maintainability and security." }}
+      </p>
+    </div>
+
+    <!-- Severity Distribution Breakdown -->
+    <div class="col-md-3 text-center py-2">
+      <div class="text-muted small text-uppercase fw-bold mb-2">Issues Breakdown</div>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <span class="badge severity-CRITICAL px-2 py-1">Critical: {{ review.metrics_json.severity_counts.CRITICAL|default:0 }}</span>
+        <span class="badge severity-HIGH px-2 py-1">High: {{ review.metrics_json.severity_counts.HIGH|default:0 }}</span>
+        <span class="badge severity-MEDIUM px-2 py-1">Medium: {{ review.metrics_json.severity_counts.MEDIUM|default:0 }}</span>
+        <span class="badge severity-LOW px-2 py-1">Low: {{ review.metrics_json.severity_counts.LOW|default:0 }}</span>
+        <span class="badge severity-INFO px-2 py-1">Info: {{ review.metrics_json.severity_counts.INFO|default:0 }}</span>
+      </div>
+      <div class="text-muted small mt-2">Total {{ review.total_findings }} Issue(s) Detected</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Findings List -->
+  <div class="col-lg-7">
+    <div class="card card-custom p-4 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-list-check text-success me-2"></i>Findings & Recommendations</h5>
+        <!-- Filter Pills -->
+        <div class="btn-group btn-group-sm" id="severityFilter">
+          <button class="btn btn-outline-custom active" data-filter="ALL">All</button>
+          <button class="btn btn-outline-danger" data-filter="CRITICAL">Critical</button>
+          <button class="btn btn-outline-warning" data-filter="HIGH">High</button>
+          <button class="btn btn-outline-primary" data-filter="MEDIUM">Medium</button>
+        </div>
+      </div>
+
+      {% if findings %}
+      <div class="d-flex flex-column gap-3 overflow-auto pe-1" style="max-height: 600px;" id="findingsContainer">
+        {% for f in findings %}
+        <div class="card card-custom p-3 finding-card finding-{{ f.severity }} bg-beige-soft border-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="badge severity-{{ f.severity }} me-2">{{ f.severity }}</span>
+              <span class="badge bg-powder-soft text-info me-2">{{ f.analyzer }}</span>
+              <span class="text-dark fw-bold">{{ f.title }}</span>
+            </div>
+            {% if f.line_number %}
+            <span class="badge bg-surface border text-muted font-monospace">Line {{ f.line_number }}</span>
+            {% endif %}
+          </div>
+          <p class="text-muted small mb-2">{{ f.message }}</p>
+
+          {% if f.code_snippet %}
+          <div class="bg-dark text-white p-2 rounded font-monospace small mb-2">
+            <code>{{ f.code_snippet }}</code>
+          </div>
+          {% endif %}
+
+          {% if f.recommendation %}
+          <div class="text-success small bg-sage-soft p-2 rounded border border-success">
+            <i class="bi bi-lightbulb-fill me-1"></i> <strong>Recommendation:</strong> {{ f.recommendation }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-check-circle display-3 text-success d-block mb-3"></i>
+        <h5 class="text-dark">Clean Code Execution!</h5>
+        <p class="small">No static analysis or security issues were flagged for this file.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Code Inspection & AI Refactor View -->
+  <div class="col-lg-5">
+    <div class="card card-custom p-4 h-100">
+      <ul class="nav nav-pills mb-3 gap-2" id="codeTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active px-3 py-1 small" id="raw-code-tab" data-bs-toggle="pill" data-bs-target="#raw-code-view">
+            Submitted Code
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link px-3 py-1 small" id="suggested-code-tab" data-bs-toggle="pill" data-bs-target="#suggested-code-view">
+            <i class="bi bi-stars text-warning me-1"></i> AI Refactored Code
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content" id="codeTabContent">
+        <div class="tab-pane fade show active" id="raw-code-view">
+          <pre class="code-display" style="max-height: 550px;">{{ review.raw_code }}</pre>
+        </div>
+        <div class="tab-pane fade" id="suggested-code-view">
+          <pre class="code-display text-success" style="max-height: 550px;">{{ review.suggested_code|default:review.raw_code }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Resubmit Loading Modal -->
+<div class="modal fade" id="resubmitLoadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content card-custom p-4 text-center">
+      <div class="spinner-border text-success mx-auto mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+      <h5 class="fw-bold text-dark mb-2">Executing AI Fix & Re-Analyzing...</h5>
+      <p class="text-muted small mb-0">Re-evaluating Python AST, Bandit, Radon, Ruff & Gemini AI metrics for Version v{{ review.version|add:1 }}...</p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{{ review.suggested_code|json_script:"suggested-code-data" }}
+<script>
+// Check for URL query parameter ?improved=true
+if (window.location.search.includes('improved=true')) {
+  document.getElementById('improvedBanner')?.classList.remove('d-none');
+}
+
+// Filter findings
+document.getElementById('severityFilter').addEventListener('click', (e) => {
+  if (e.target.tagName === 'BUTTON') {
+    const filter = e.target.getAttribute('data-filter');
+    document.querySelectorAll('#severityFilter button').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+
+    document.querySelectorAll('.finding-card').forEach(card => {
+      if (filter === 'ALL' || card.classList.contains(`finding-${filter}`)) {
+        card.style.display = 'block';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+});
+
+// Apply AI Fix & Resubmit as next version
+document.getElementById('resubmitBtn').addEventListener('click', async () => {
+  const suggestedCodeEl = document.getElementById('suggested-code-data');
+  const suggestedCode = JSON.parse(suggestedCodeEl ? suggestedCodeEl.textContent : '""');
+  const projectId = "{{ review.project.id }}";
+  const filename = "{{ review.filename }}";
+
+  if (!suggestedCode.trim()) {
+    alert('No refactored code available to resubmit.');
+    return;
+  }
+
+  // Show loading modal
+  const loadingModalEl = document.getElementById('resubmitLoadingModal');
+  const modal = new bootstrap.Modal(loadingModalEl);
+  modal.show();
+
+  const formData = new FormData();
+  formData.append('project_id', projectId);
+  formData.append('filename', filename);
+  formData.append('code', suggestedCode);
+
+  // Append active analyzers
+  ['ast', 'bandit', 'radon', 'ruff', 'gemini'].forEach(a => formData.append('enabled_analyzers', a));
+
+  try {
+    const res = await API.submitReview(formData);
+    if (res.id) {
+      setTimeout(() => {
+        window.location.href = `/reviews/${res.id}/report/?improved=true`;
+      }, 500);
+    } else {
+      modal.hide();
+      alert('Review submission error.');
+    }
+  } catch (err) {
+    modal.hide();
+    alert('Error submitting refactored code.');
+  }
+});
+</script>
+{% endblock %}

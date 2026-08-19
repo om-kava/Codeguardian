@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Code Studio - CodeGuardian AI{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+  <div>
+    <h2 class="fw-extrabold mb-1"><i class="bi bi-cpu text-success me-2"></i>Interactive Polyglot Code Studio</h2>
+    <p class="text-muted mb-0">Multi-language code inspection & AI refactoring for Python, JS/TS, Java, C/C++, Go, Rust, PHP, SQL, and HTML/CSS</p>
+  </div>
+  <div class="d-flex flex-column flex-sm-row gap-2 mt-3 mt-md-0 w-100 w-md-auto">
+    <!-- Multi-Language Sample Code Picker Dropdown -->
+    <div class="dropdown">
+      <button class="btn btn-powder-blue dropdown-toggle px-3 w-100" type="button" id="loadSampleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-magic me-1"></i> Load Sample Code
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm w-100" aria-labelledby="loadSampleDropdown">
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="js"><i class="bi bi-filetype-js text-warning me-2"></i>JavaScript (Express / Node.js)</a></li>
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="py"><i class="bi bi-filetype-py text-success me-2"></i>Python (FastAPI & Security)</a></li>
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="java"><i class="bi bi-cup-hot text-danger me-2"></i>Java (Spring Boot & Auth)</a></li>
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="cpp"><i class="bi bi-filetype-cpp text-primary me-2"></i>C / C++ (Memory & Buffer)</a></li>
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="ts"><i class="bi bi-filetype-tsx text-info me-2"></i>TypeScript (React UI)</a></li>
+        <li><a class="dropdown-item small py-2 sample-lang-option" href="#" data-lang="sql"><i class="bi bi-database text-secondary me-2"></i>SQL (Raw Query Injections)</a></li>
+      </ul>
+    </div>
+
+    <button id="reanalyzeBtn" class="btn btn-primary-custom px-4 fw-bold w-100 w-sm-auto">
+      <i class="bi bi-lightning-charge-fill me-1"></i> ⚡ Re-Analyze Code
+    </button>
+  </div>
+</div>
+
+<!-- Project & Repository Selection Bar -->
+<div class="card card-custom p-3 mb-4">
+  <div class="row g-3 align-items-center">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold text-dark mb-1">Target Project *</label>
+      <select id="projectSelect" class="form-select form-select-sm" required>
+        <option value="">-- Select a Project --</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" data-repo="{{ p.repository_url|default:'' }}" {% if selected_project_id == p.id|stringformat:"s" %}selected{% endif %}>
+          {{ p.name }} (Avg Score: {{ p.average_score }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Repository File Selector Dropdown -->
+    <div class="col-md-4" id="repoFileDropdownContainer">
+      <label class="form-label small fw-bold text-dark mb-1">Select File from Repository</label>
+      <select id="repoFileSelect" class="form-select form-select-sm" disabled>
+        <option value="">-- Select Project First --</option>
+      </select>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label small fw-bold text-dark mb-1">Filename</label>
+      <input type="text" id="filenameInput" class="form-control form-control-sm" value="server.js" placeholder="e.g. server.js, Main.java, script.py">
+    </div>
+  </div>
+
+  <div class="mt-2 row g-2">
+    <div class="col-md-12">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-surface border-card"><i class="bi bi-github"></i></span>
+        <input type="url" id="githubRepoUrl" class="form-control" placeholder="https://github.com/owner/repository or direct file URL">
+        <button type="button" id="fetchGithubBtn" class="btn btn-powder-blue">
+          <i class="bi bi-download me-1"></i> Fetch Repo Files
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="githubAlert" class="mt-2"></div>
+</div>
+
+<!-- Split Screen Studio -->
+<div class="row g-4">
+  <!-- LEFT COLUMN: Live Code Editor -->
+  <div class="col-lg-7">
+    <div class="card card-custom p-4 h-100 d-flex flex-column">
+      <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-3">
+        <h5 class="fw-bold mb-0 text-dark">
+          <i class="bi bi-code-slash me-2 text-success"></i>Polyglot Live Code Editor
+        </h5>
+        <div class="d-flex gap-2 mt-2 mt-sm-0">
+          <button id="applyAiFixBtn" class="btn btn-sm btn-powder-blue px-3 w-100">
+            <i class="bi bi-robot me-1"></i> 🤖 Apply Full AI Fix
+          </button>
+        </div>
+      </div>
+
+      <div class="code-editor-container flex-grow-1 mb-3">
+        <textarea id="codeTextarea" class="code-textarea h-100" rows="18" placeholder="// Select a sample code language or paste Python, JavaScript, Java, C++, Go, Rust, PHP, SQL, or HTML code here..."></textarea>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center text-muted small">
+        <span id="lineCharCount">Lines: 0 | Characters: 0</span>
+        <span class="text-success"><i class="bi bi-shield-check me-1"></i>Multi-Language AI Engine Active</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Findings & AI Recommendations -->
+  <div class="col-lg-5">
+    <div class="card card-custom p-4 h-100 d-flex flex-column">
+      <!-- Live Score Badge Header -->
+      <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-card pb-3">
+        <div>
+          <h5 class="fw-bold mb-0"><i class="bi bi-list-check me-2 text-success"></i>Code Health Analysis</h5>
+          <span class="text-muted small" id="findingsCountText">Click Re-Analyze to run evaluation</span>
+        </div>
+        <div id="scoreBadgeContainer">
+          <span class="badge bg-secondary fs-6 px-3 py-2">Score: --</span>
+        </div>
+      </div>
+
+      <!-- AI Summary Box -->
+      <div id="aiSummaryBox" class="p-3 bg-beige-soft rounded-4 border border-card mb-3 d-none">
+        <h6 class="fw-bold text-dark mb-1"><i class="bi bi-chat-quote me-2 text-success"></i>Gemini AI Executive Insights</h6>
+        <p class="text-muted small mb-0" id="aiSummaryText"></p>
+      </div>
+
+      <!-- Issues / Findings List -->
+      <div class="flex-grow-1 overflow-auto" id="findingsList" style="max-height: 480px;">
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-arrow-left-circle display-4 d-block text-secondary mb-2"></i>
+          <p class="fw-semibold mb-1">Polyglot Code Analysis Ready</p>
+          <p class="small">Load a sample language code or select a file from the repository, then click <strong>⚡ Re-Analyze Code</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const codeTextarea = document.getElementById('codeTextarea');
+  const lineCharCount = document.getElementById('lineCharCount');
+  const reanalyzeBtn = document.getElementById('reanalyzeBtn');
+  const applyAiFixBtn = document.getElementById('applyAiFixBtn');
+  const projectSelect = document.getElementById('projectSelect');
+  const repoFileSelect = document.getElementById('repoFileSelect');
+  const filenameInput = document.getElementById('filenameInput');
+  const scoreBadgeContainer = document.getElementById('scoreBadgeContainer');
+  const findingsCountText = document.getElementById('findingsCountText');
+  const findingsList = document.getElementById('findingsList');
+  const aiSummaryBox = document.getElementById('aiSummaryBox');
+  const aiSummaryText = document.getElementById('aiSummaryText');
+  const alertBox = document.getElementById('githubAlert');
+
+  let currentSuggestedCode = '';
+  let activeRepoUrl = '';
+
+  // Multi-Language Sample Code Templates
+  const sampleCodes = {
+    js: {
+      filename: 'server.js',
+      code: `// JavaScript (Express.js) Security Sample
+const express = require('express');
+const app = express();
+
+const API_KEY = "sk-live-1234567890abcdef12345678"; // Hardcoded credential
+
+app.get('/api/users', (req, res) => {
+    const userId = req.query.id;
+    // SQL Injection Risk
+    const query = "SELECT * FROM users WHERE id = " + userId;
+    
+    // Dynamic evaluation security vulnerability
+    const result = eval(req.query.data);
+    
+    // Cross-Site Scripting (XSS) Vulnerability
+    document.write("<div>" + result + "</div>");
+});`
+    },
+
+    py: {
+      filename: 'payment_processor.py',
+      code: `import os
+import eval_module # Unused import
+
+SECRET_KEY = "sk-live-1234567890abcdef12345678" # Hardcoded secret key
+
+def process_transaction(user_id, items=[]):
+    """
+    Python payment processing function with vulnerabilities.
+    """
+    print("Processing transaction for user:", user_id)
+    
+    # Dangerous eval call
+    auth_check = eval("user_id == 'admin'")
+    
+    if len(items) > 0:
+        for i in range(len(items)):
+            if items[i] == "admin":
+                os.system("echo " + items[i]) # Shell injection vulnerability
+    
+    try:
+        total = sum(items)
+    except:
+        pass # Bare except clause
+        
+    return auth_check`
+    },
+
+    java: {
+      filename: 'DatabaseManager.java',
+      code: `// Java Database Manager Sample
+public class DatabaseManager {
+    private static final String DB_PASSWORD = "SecretJavaPassword123!"; // Hardcoded password
+
+    public void getUserData(String userId, String rawData) {
+        // SQL Injection Vulnerability
+        String query = "SELECT * FROM users WHERE id = '" + userId + "'";
+        
+        // Dangerous Dynamic Code Evaluation
+        Object evalResult = eval(rawData);
+    }
+}`
+    },
+
+    cpp: {
+      filename: 'buffer_handler.cpp',
+      code: `// C++ Memory Buffer Handler Sample
+#include <iostream>
+#include <cstring>
+#include <cstdio>
+
+void process_user_input(const char* input) {
+    char buffer[16];
+    
+    // Unsafe string copy (Buffer Overflow risk)
+    strcpy(buffer, input);
+    
+    // Unsafe gets input reader
+    gets(buffer);
+    
+    std::cout << "Buffer contents: " << buffer << std.endl;
+}`
+    },
+
+    ts: {
+      filename: 'App.tsx',
+      code: `// TypeScript React Component Sample
+import React from 'react';
+
+const AUTH_TOKEN = "sk-live-998877665544332211"; // Hardcoded secret
+
+export const UserProfile = ({ userInput }: { userInput: string }) => {
+    // Dynamic evaluation vulnerability
+    const computedState = eval(userInput);
+
+    return (
+        <div className="user-profile">
+            {/* DOM XSS Risk */}
+            <div dangerouslySetInnerHTML="{ htmlData }" />
+        </div>
+    );
+};`
+    },
+
+    sql: {
+      filename: 'queries.sql',
+      code: `-- SQL Query Security & Injection Sample
+SELECT * FROM users WHERE username = 'admin' AND password = 'PlaintextPassword123!';
+
+-- Unparameterized dynamic query concatenation risk
+SELECT u.id, u.email, p.card_number 
+FROM users u 
+JOIN payment_info p ON u.id = p.user_id 
+WHERE u.id = '100' OR 1=1;`
+    }
+  };
+
+
+  // Character & Line Counter
+  function updateCounters() {
+    const text = codeTextarea.value;
+    const lines = text.split('\n').length;
+    lineCharCount.innerText = `Lines: ${lines} | Characters: ${text.length}`;
+  }
+  codeTextarea.addEventListener('input', updateCounters);
+  updateCounters();
+
+  // Multi-Language Sample Option Clicks
+  document.querySelectorAll('.sample-lang-option').forEach(opt => {
+    opt.addEventListener('click', (e) => {
+      e.preventDefault();
+      const langKey = opt.getAttribute('data-lang');
+      const sample = sampleCodes[langKey];
+      if (sample) {
+        codeTextarea.value = sample.code;
+        filenameInput.value = sample.filename;
+        updateCounters();
+        runLiveAnalysis();
+      }
+    });
+  });
+
+  // Load default JS sample on initial load
+  const defaultSample = sampleCodes['js'];
+  codeTextarea.value = defaultSample.code;
+  filenameInput.value = defaultSample.filename;
+  updateCounters();
+
+  // Project Selection Handler -> Loads repository files automatically
+  projectSelect.addEventListener('change', async () => {
+    const selectedOpt = projectSelect.options[projectSelect.selectedIndex];
+    const repoUrl = selectedOpt ? selectedOpt.getAttribute('data-repo') : '';
+    
+    repoFileSelect.innerHTML = '<option value="">-- Loading Repo Files... --</option>';
+    repoFileSelect.disabled = true;
+
+    if (repoUrl) {
+      document.getElementById('githubRepoUrl').value = repoUrl;
+      activeRepoUrl = repoUrl;
+      await loadRepoFileDropdown(repoUrl);
+    } else {
+      repoFileSelect.innerHTML = '<option value="">-- No Repo Linked to Project --</option>';
+    }
+  });
+
+  async function loadRepoFileDropdown(repoUrl) {
+    alertBox.innerHTML = '<div class="alert alert-info py-2"><i class="spinner-border spinner-border-sm me-2"></i>Fetching code files from repository...</div>';
+    try {
+      const res = await API.fetchGitHubCode(repoUrl);
+      if (res.type === 'tree' && res.files.length) {
+        alertBox.innerHTML = `<div class="alert alert-success py-2">Found <strong>${res.files.length}</strong> code files in repository. Select any file below to analyze.</div>`;
+        repoFileSelect.innerHTML = '<option value="">-- Select a File from Repo --</option>';
+        res.files.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.path;
+          opt.innerText = `${f.path} (${(f.size/1024).toFixed(1)} KB)`;
+          repoFileSelect.appendChild(opt);
+        });
+        repoFileSelect.disabled = false;
+      } else {
+        alertBox.innerHTML = `<div class="alert alert-warning py-2">${res.error || 'No code files found in repository.'}</div>`;
+        repoFileSelect.innerHTML = '<option value="">-- No Code Files Found --</option>';
+      }
+    } catch (err) {
+      alertBox.innerHTML = '<div class="alert alert-danger py-2">Could not connect to repository.</div>';
+      repoFileSelect.innerHTML = '<option value="">-- Error Fetching Repo --</option>';
+    }
+  }
+
+  // Repo File Dropdown Change Handler
+  repoFileSelect.addEventListener('change', async () => {
+    const filePath = repoFileSelect.value;
+    if (!filePath || !activeRepoUrl) return;
+
+    alertBox.innerHTML = `<div class="alert alert-info py-2"><i class="spinner-border spinner-border-sm me-2"></i>Loading ${filePath}...</div>`;
+    try {
+      const res = await API.fetchGitHubCode(activeRepoUrl, filePath);
+      if (res.code) {
+        codeTextarea.value = res.code;
+        filenameInput.value = res.filename;
+        alertBox.innerHTML = `<div class="alert alert-success py-2">Loaded <strong>${res.filename}</strong>! Analyzing...</div>`;
+        updateCounters();
+        runLiveAnalysis();
+      }
+    } catch (err) {
+      alertBox.innerHTML = '<div class="alert alert-danger py-2">Failed to load file.</div>';
+    }
+  });
+
+  // GitHub Fetch Button Handler
+  document.getElementById('fetchGithubBtn').addEventListener('click', async () => {
+    const repoUrl = document.getElementById('githubRepoUrl').value.trim();
+    if (!repoUrl) {
+      alertBox.innerHTML = '<div class="alert alert-danger py-2">Please enter a GitHub repository URL.</div>';
+      return;
+    }
+    activeRepoUrl = repoUrl;
+    await loadRepoFileDropdown(repoUrl);
+  });
+
+  // Live Analysis Function
+  async function runLiveAnalysis() {
+    const code = codeTextarea.value;
+    if (!code.trim()) {
+      alert('Please paste or select code first.');
+      return;
+    }
+
+    reanalyzeBtn.disabled = true;
+    reanalyzeBtn.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i> Analyzing...';
+
+    try {
+      const projectId = projectSelect.value || null;
+      const res = await API.analyzeInstant(code, filenameInput.value || 'server.js', projectId);
+
+      if (res.quality_score !== undefined) {
+        currentSuggestedCode = res.suggested_code;
+        renderScoreBadge(res.quality_score, res.letter_grade);
+        renderFindings(res.findings);
+
+        if (res.summary) {
+          aiSummaryText.innerText = res.summary;
+          aiSummaryBox.classList.remove('d-none');
+        } else {
+          aiSummaryBox.classList.add('d-none');
+        }
+      } else {
+        alert('Analysis error: ' + (res.error || 'Failed to analyze code.'));
+      }
+    } catch (err) {
+      alert('Error running instant analysis.');
+    } finally {
+      reanalyzeBtn.disabled = false;
+      reanalyzeBtn.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i> ⚡ Re-Analyze Code';
+    }
+  }
+
+  // Render Quality Score Badge
+  function renderScoreBadge(score, grade) {
+    let colorClass = 'bg-success';
+    if (score < 60) colorClass = 'bg-danger';
+    else if (score < 80) colorClass = 'bg-warning text-dark';
+
+    scoreBadgeContainer.innerHTML = `
+      <span class="badge ${colorClass} fs-5 px-3 py-2 fw-bold shadow-sm">
+        Score: ${score} (${grade})
+      </span>
+    `;
+  }
+
+  // Render Findings Cards with Line Numbers & Recommendations
+  function renderFindings(findings) {
+    findingsCountText.innerText = `${findings.length} total issue(s) identified`;
+    findingsList.innerHTML = '';
+
+    if (findings.length === 0) {
+      findingsList.innerHTML = `
+        <div class="text-center py-5">
+          <i class="bi bi-check-circle-fill display-3 text-success d-block mb-2"></i>
+          <h6 class="fw-bold text-success mb-1">Excellent Polyglot Code Quality!</h6>
+          <p class="text-muted small">No security vulnerabilities or style issues detected.</p>
+        </div>
+      `;
+      return;
+    }
+
+    findings.forEach((f) => {
+      let sevClass = 'bg-info text-white';
+      if (f.severity === 'CRITICAL') sevClass = 'bg-danger text-white';
+      else if (f.severity === 'HIGH') sevClass = 'bg-warning text-dark';
+      else if (f.severity === 'MEDIUM') sevClass = 'bg-powder-soft text-primary';
+
+      const card = document.createElement('div');
+      card.className = 'card card-custom p-3 mb-3 border border-card shadow-sm';
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <span class="badge ${sevClass} me-1" style="font-size: 0.7rem;">${f.severity}</span>
+            <span class="badge bg-sage-soft text-success me-1" style="font-size: 0.7rem;">${f.analyzer}</span>
+            <span class="badge bg-secondary" style="font-size: 0.7rem;">Line ${f.line_number || 'N/A'}</span>
+          </div>
+          <button class="btn btn-sm btn-link text-decoration-none text-primary p-0 jump-line-btn" data-line="${f.line_number}">
+            <i class="bi bi-geo-alt me-1"></i> Jump to Line
+          </button>
+        </div>
+
+        <h6 class="fw-bold text-dark mb-1" style="font-size: 0.9rem;">${f.title}</h6>
+        <p class="text-muted small mb-2">${f.message}</p>
+
+        ${f.code_snippet ? `<pre class="bg-beige-soft p-2 rounded-3 text-danger small font-monospace mb-2 overflow-auto">${f.code_snippet}</pre>` : ''}
+
+        <div class="p-2 rounded-3 bg-sage-soft border border-success border-opacity-25 small">
+          <strong class="text-success d-block mb-1"><i class="bi bi-lightbulb me-1"></i>How to Fix:</strong>
+          <span class="text-dark">${f.recommendation || 'Refactor code according to language standard guidelines.'}</span>
+        </div>
+      `;
+      findingsList.appendChild(card);
+    });
+
+    // Jump to line click listener
+    document.querySelectorAll('.jump-line-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lineNum = parseInt(btn.getAttribute('data-line'));
+        if (lineNum) {
+          const lines = codeTextarea.value.split('\n');
+          let pos = 0;
+          for (let i = 0; i < Math.min(lineNum - 1, lines.length); i++) {
+            pos += lines[i].length + 1;
+          }
+          codeTextarea.focus();
+          codeTextarea.setSelectionRange(pos, pos + (lines[lineNum - 1] ? lines[lineNum - 1].length : 0));
+        }
+      });
+    });
+  }
+
+  // Re-Analyze Button Trigger
+  reanalyzeBtn.addEventListener('click', runLiveAnalysis);
+
+  // Apply Full AI Fix Button
+  applyAiFixBtn.addEventListener('click', () => {
+    if (!currentSuggestedCode) {
+      alert('Please run ⚡ Re-Analyze Code first.');
+      return;
+    }
+    if (confirm('Apply AI Refactored code to the editor?')) {
+      codeTextarea.value = currentSuggestedCode;
+      updateCounters();
+      runLiveAnalysis();
+    }
+  });
+
+  // Auto trigger project change if selected_project_id is present
+  if (projectSelect.value) {
+    projectSelect.dispatchEvent(new Event('change'));
+  }
+});
+</script>
+{% endblock %}

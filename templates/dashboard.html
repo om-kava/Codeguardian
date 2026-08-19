@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CodeGuardian AI{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3 animate-fade-in">
+  <div>
+    <h2 class="fw-extrabold mb-1"><i class="bi bi-speedometer2 text-success me-2"></i>Your Dashboard</h2>
+    <p class="text-muted mb-0">Overview of your projects and recent code reviews</p>
+  </div>
+  <div class="d-flex flex-column flex-sm-row gap-2 mt-3 mt-md-0 w-100 w-md-auto">
+    <a href="/projects/" class="btn btn-outline-custom px-3">
+      <i class="bi bi-folder-plus me-1"></i> Manage Projects
+    </a>
+    <a href="/reviews/studio/" class="btn btn-primary-custom px-4">
+      <i class="bi bi-cpu me-1"></i> Open Code Studio
+    </a>
+  </div>
+</div>
+
+<!-- Key Metrics Row -->
+<div class="row g-3 mb-4 animate-fade-in delay-100">
+  <div class="col-md-3">
+    <div class="card card-custom stat-card p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small text-uppercase fw-bold">Active Projects</div>
+          <div class="display-6 fw-extrabold text-dark mt-1">{{ total_projects }}</div>
+        </div>
+        <div class="bg-sage-soft rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:54px; height:54px;">
+          <i class="bi bi-folder2 text-success fs-3"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card card-custom stat-card p-3" style="border-left-color: var(--powder-blue);">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small text-uppercase fw-bold">Total Reviews</div>
+          <div class="display-6 fw-extrabold text-dark mt-1">{{ total_reviews }}</div>
+        </div>
+        <div class="bg-powder-soft rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:54px; height:54px;">
+          <i class="bi bi-journal-code text-info fs-3"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card card-custom stat-card p-3" style="border-left-color: #10b981;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small text-uppercase fw-bold">Avg Quality Score</div>
+          <div class="display-6 fw-extrabold text-success mt-1">{{ avg_score }} <span class="fs-6 text-muted">/100</span></div>
+        </div>
+        <div class="bg-sage-soft rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:54px; height:54px;">
+          <i class="bi bi-trophy text-success fs-3"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card card-custom stat-card p-3" style="border-left-color: #f59e0b;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="text-muted small text-uppercase fw-bold">Issues Identified</div>
+          <div class="display-6 fw-extrabold text-dark mt-1">{{ total_issues }}</div>
+        </div>
+        <div class="bg-beige-soft rounded-circle p-3 d-flex align-items-center justify-content-center" style="width:54px; height:54px;">
+          <i class="bi bi-exclamation-triangle text-warning fs-3"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 animate-fade-in delay-200">
+  <!-- Recent Reviews Table -->
+  <div class="col-lg-8">
+    <div class="card card-custom p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-success"></i>Recent Code Reviews</h5>
+        <a href="/reviews/studio/" class="btn btn-sm btn-outline-custom">Launch Studio</a>
+      </div>
+
+      {% if recent_reviews %}
+      <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+          <thead>
+            <tr>
+              <th>PROJECT</th>
+              <th>VERSION</th>
+              <th>FILE</th>
+              <th>SCORE</th>
+              <th>GRADE</th>
+              <th>DATE</th>
+              <th class="text-end">ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_reviews %}
+            <tr>
+              <td class="fw-bold text-dark">{{ r.project.name }}</td>
+              <td><span class="badge bg-powder-soft text-info fw-bold px-2 py-1">v{{ r.version }}</span></td>
+              <td class="font-monospace small text-primary">{{ r.filename }}</td>
+              <td>
+                <span class="fw-bold fs-6 {% if r.quality_score >= 80 %}text-success{% elif r.quality_score >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ r.quality_score }}
+                </span>
+              </td>
+              <td>
+                <span class="badge grade-{{ r.letter_grade }}" style="width: auto; height: auto; font-size: 0.75rem; padding: 4px 10px; animation:none;">
+                  Grade {{ r.letter_grade }}
+                </span>
+              </td>
+              <td class="text-muted small">{{ r.created_at|date:"M d, H:i" }}</td>
+              <td class="text-end">
+                <a href="/reviews/{{ r.id }}/report/" class="btn btn-sm btn-outline-custom me-1">
+                  Report
+                </a>
+                <a href="/reviews/studio/?project={{ r.project.id }}" class="btn btn-sm btn-primary-custom">
+                  Open Studio <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-code-slash display-4 text-muted mb-3 d-block"></i>
+        <p class="mb-2 fs-5 font-weight-bold">No code reviews performed yet.</p>
+        <p class="small mb-3">Add a project to start your first review.</p>
+        <a href="/reviews/studio/" class="btn btn-primary-custom btn-sm px-4">Launch Studio</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Projects List Card -->
+  <div class="col-lg-4">
+    <div class="card card-custom p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="bi bi-folder me-2 text-success"></i>Active Projects</h5>
+        <a href="/projects/" class="btn btn-sm btn-outline-custom"><i class="bi bi-plus-lg"></i></a>
+      </div>
+
+      {% if projects %}
+      <div class="list-group list-group-flush bg-transparent">
+        {% for p in projects %}
+        <a href="/projects/{{ p.id }}/" class="list-group-item list-group-item-action bg-transparent text-dark border-subtle px-0 py-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-dark mb-1">{{ p.name }}</div>
+              <div class="text-muted small">
+                {{ p.total_reviews }} review(s) &bull; Avg: <span class="text-success fw-bold">{{ p.average_score }}</span>
+              </div>
+            </div>
+            <i class="bi bi-chevron-right text-muted"></i>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-4 text-muted">
+        <p class="small mb-2">No projects created yet.</p>
+        <a href="/projects/" class="btn btn-outline-custom btn-sm">Add New Project</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

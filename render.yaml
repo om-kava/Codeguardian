@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: codeguardian-ai
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn codeguardian.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.9
+      - key: DEBUG
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1

@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - CodeGuardian AI{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+  <div>
+    <div class="mb-1">
+      <a href="/projects/" class="text-muted text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i> Back to Projects
+      </a>
+    </div>
+    <h2 class="fw-extrabold mb-1"><i class="bi bi-folder-fill text-success me-2"></i>{{ project.name }}</h2>
+    <p class="text-muted mb-0">{{ project.description|default:"No description" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if project.repository_url %}
+    <button id="auditRepoBtn" class="btn btn-powder-blue px-3">
+      <i class="bi bi-shield-check me-1"></i> Run Full Repository Audit
+    </button>
+    {% endif %}
+    <a href="/reviews/compare/?project={{ project.id }}" class="btn btn-outline-custom px-3">
+      <i class="bi bi-arrow-left-right me-1"></i> Compare Versions
+    </a>
+    <a href="/reviews/studio/?project={{ project.id }}" class="btn btn-primary-custom px-4">
+      <i class="bi bi-play-fill me-1"></i> Review New Code
+    </a>
+  </div>
+</div>
+
+<!-- Repository Files Card if repository_url present -->
+{% if project.repository_url %}
+<div class="card card-custom p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">
+      <i class="bi bi-github me-2 text-dark"></i>GitHub Repository: 
+      <a href="{{ project.repository_url }}" target="_blank" class="text-primary text-decoration-none font-monospace fs-6">{{ project.repository_url }}</a>
+    </h5>
+    <button id="fetchRepoFilesBtn" class="btn btn-sm btn-outline-custom">
+      <i class="bi bi-arrow-clockwise me-1"></i> Scan Repository Files
+    </button>
+  </div>
+  
+  <div id="repoFilesAlert"></div>
+  <div id="repoFilesContainer" class="d-none">
+    <div class="list-group list-group-flush border rounded-3 bg-beige-soft overflow-auto" id="repoFilesList" style="max-height: 250px;"></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+  <!-- Chart Card -->
+  <div class="col-lg-7">
+    <div class="card card-custom p-4">
+      <h5 class="fw-bold mb-3"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Quality Score Progression</h5>
+      {% if reviews %}
+      <div style="height: 250px;">
+        <canvas id="scoreChart"></canvas>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <p>No review data to graph yet.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="col-lg-5">
+    <div class="card card-custom p-4">
+      <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2 text-success"></i>Project Summary</h5>
+      <div class="d-flex flex-column gap-3">
+        <div class="d-flex justify-content-between border-bottom border-card pb-2">
+          <span class="text-muted">Total Review Runs</span>
+          <span class="fw-bold text-dark">{{ project.total_reviews }}</span>
+        </div>
+        <div class="d-flex justify-content-between border-bottom border-card pb-2">
+          <span class="text-muted">Average Quality Score</span>
+          <span class="fw-bold text-success">{{ project.average_score }} / 100</span>
+        </div>
+        <div class="d-flex justify-content-between border-bottom border-card pb-2">
+          <span class="text-muted">Target Language</span>
+          <span class="badge bg-sage-soft text-success px-2">{{ project.language }}</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Created Date</span>
+          <span class="text-dark small">{{ project.created_at|date:"Y-m-d H:i" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Review Versions History -->
+<div class="card card-custom p-4">
+  <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 text-success"></i>Review Versions History</h5>
+  
+  {% if reviews %}
+  <div class="table-responsive">
+    <table class="table table-custom align-middle mb-0">
+      <thead>
+        <tr>
+          <th>VERSION</th>
+          <th>FILENAME</th>
+          <th>SCORE</th>
+          <th>GRADE</th>
+          <th>FINDINGS COUNT</th>
+          <th>DATE</th>
+          <th class="text-end">ACTION</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td><span class="badge bg-sage-soft text-success fs-6">v{{ r.version }}</span></td>
+          <td class="font-monospace text-primary small">{{ r.filename }}</td>
+          <td>
+            <span class="fw-bold fs-5 {% if r.quality_score >= 80 %}text-success{% elif r.quality_score >= 60 %}text-warning{% else %}text-danger{% endif %}">
+              {{ r.quality_score }}
+            </span>
+          </td>
+          <td>
+            <span class="badge grade-{{ r.letter_grade }}" style="width: auto; height: auto; font-size: 0.75rem; padding: 4px 10px; animation:none;">
+              Grade {{ r.letter_grade }}
+            </span>
+          </td>
+          <td><span class="badge bg-powder-soft text-info">{{ r.total_findings }} finding(s)</span></td>
+          <td class="text-muted small">{{ r.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="text-end">
+            <a href="/reviews/{{ r.id }}/report/" class="btn btn-sm btn-outline-custom">
+              View Full Report <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-4 text-muted">
+    <p class="mb-2">No reviews conducted for this project yet.</p>
+    <a href="/reviews/studio/?project={{ project.id }}" class="btn btn-primary-custom btn-sm px-4">
+      Run First Review
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if reviews %}
+{{ chart_labels|json_script:"chart-labels-data" }}
+{{ chart_scores|json_script:"chart-scores-data" }}
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const repoUrl = "{{ project.repository_url }}";
+  const projectId = "{{ project.id }}";
+
+  // Auto scan repository files if repository_url present
+  if (repoUrl) {
+    loadRepoFiles();
+  }
+
+  async function loadRepoFiles() {
+    const alertBox = document.getElementById('repoFilesAlert');
+    const container = document.getElementById('repoFilesContainer');
+    const fileList = document.getElementById('repoFilesList');
+
+    if (!alertBox || !container || !fileList) return;
+    alertBox.innerHTML = '<div class="alert alert-info py-2"><i class="spinner-border spinner-border-sm me-2"></i>Scanning GitHub repository files...</div>';
+    
+    try {
+      const res = await API.fetchGitHubCode(repoUrl);
+      if (res.type === 'tree') {
+        alertBox.innerHTML = `<div class="alert alert-success py-2">Found <strong>${res.files.length}</strong> Python files in repository. Click <em>Review File</em> to analyze any file directly.</div>`;
+        container.classList.remove('d-none');
+        fileList.innerHTML = '';
+
+        res.files.forEach(f => {
+          const item = document.createElement('div');
+          item.className = 'list-group-item bg-transparent border-0 border-bottom py-2 d-flex justify-content-between align-items-center';
+          item.innerHTML = `
+            <div>
+              <i class="bi bi-file-earmark-code text-success me-2"></i>
+              <span class="font-monospace fw-semibold text-dark">${f.path}</span>
+              <span class="badge bg-secondary ms-2">${(f.size/1024).toFixed(1)} KB</span>
+            </div>
+            <a href="/reviews/studio/?project=${projectId}&github_url=${encodeURIComponent(repoUrl)}&file_path=${encodeURIComponent(f.path)}" class="btn btn-sm btn-outline-custom py-1">
+              Review File <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          `;
+          fileList.appendChild(item);
+        });
+      } else {
+        alertBox.innerHTML = `<div class="alert alert-warning py-2">${res.error || 'Repository root scan complete.'}</div>`;
+      }
+    } catch (err) {
+      alertBox.innerHTML = '<div class="alert alert-warning py-2">Could not connect to GitHub repository.</div>';
+    }
+  }
+
+  document.getElementById('fetchRepoFilesBtn')?.addEventListener('click', loadRepoFiles);
+
+  // Full Repository Audit Action
+  document.getElementById('auditRepoBtn')?.addEventListener('click', async () => {
+    if (confirm('Run full repository audit across all Python files in this project?')) {
+      const btn = document.getElementById('auditRepoBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i> Auditing Repository...';
+
+      try {
+        const res = await API.auditRepository(projectId);
+        if (res.id) {
+          window.location.href = `/reviews/${res.id}/report/`;
+        } else {
+          alert('Audit error: ' + (res.error || 'Failed to audit repository.'));
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Error auditing repository.');
+        btn.disabled = false;
+      }
+    }
+  });
+
+  // Chart Rendering
+  const canvasEl = document.getElementById('scoreChart');
+  if (!canvasEl) return;
+
+  const labelsEl = document.getElementById('chart-labels-data');
+  const scoresEl = document.getElementById('chart-scores-data');
+  if (!labelsEl || !scoresEl) return;
+
+  const labels = JSON.parse(labelsEl.textContent || '[]');
+  const scores = JSON.parse(scoresEl.textContent || '[]');
+
+  if (typeof Chart === 'undefined') return;
+
+  const ctx = canvasEl.getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Quality Score',
+        data: scores,
+        borderColor: '#2d6a4f',
+        backgroundColor: 'rgba(45, 106, 79, 0.12)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 6,
+        pointHoverRadius: 9,
+        pointBackgroundColor: '#52b788'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100, grid: { color: '#e6dfd1' }, ticks: { color: '#64748b' } },
+        x: { grid: { color: '#e6dfd1' }, ticks: { color: '#64748b' } }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

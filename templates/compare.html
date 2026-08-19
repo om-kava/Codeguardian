@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Review Versions - CodeGuardian AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="fw-extrabold mb-1"><i class="bi bi-arrow-left-right text-success me-2"></i>Version Score & Findings Comparison</h2>
+    <p class="text-muted mb-0">Evaluate quality score deltas, resolved issues, and newly introduced bugs across submission attempts</p>
+  </div>
+</div>
+
+<!-- Selector Card -->
+<div class="card card-custom p-4 mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-bold">1. Select Project</label>
+      <select id="compareProjectSelect" class="form-select">
+        <option value="">-- Select Project --</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}">{{ p.name }} ({{ p.total_reviews }} reviews)</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">2. Base Version (Older)</label>
+      <select id="review1Select" class="form-select" disabled>
+        <option value="">-- Select Version 1 --</option>
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label small fw-bold">3. Compare Version (Newer)</label>
+      <select id="review2Select" class="form-select" disabled>
+        <option value="">-- Select Version 2 --</option>
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <button id="runCompareBtn" class="btn btn-primary-custom w-100 py-2" disabled>
+        <i class="bi bi-search me-1"></i> Compare
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Comparison Results Container -->
+<div id="compareResults" class="d-none">
+  <!-- Delta Banner -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card card-custom p-4 text-center border-start border-4 border-info">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Base Quality Score</div>
+        <div id="v1Score" class="display-5 fw-extrabold text-dark">--</div>
+        <div id="v1Meta" class="text-muted small mt-1">Version --</div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card card-custom p-4 text-center border-start border-4 border-success">
+        <div class="text-muted small text-uppercase fw-bold mb-1">New Quality Score</div>
+        <div id="v2Score" class="display-5 fw-extrabold text-dark">--</div>
+        <div id="v2Meta" class="text-muted small mt-1">Version --</div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div id="deltaCard" class="card card-custom p-4 text-center border-start border-4 border-success">
+        <div class="text-muted small text-uppercase fw-bold mb-1">Quality Delta</div>
+        <div id="scoreDelta" class="display-5 fw-extrabold text-success">+0.0</div>
+        <div id="deltaMeta" class="text-muted small mt-1">Score Progression</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Resolved Issues Column -->
+    <div class="col-md-6">
+      <div class="card card-custom p-4 border-top border-4 border-success h-100">
+        <h5 class="fw-bold text-success mb-3"><i class="bi bi-check-circle-fill me-2"></i>Resolved Issues (<span id="resolvedCount">0</span>)</h5>
+        <div id="resolvedList" class="d-flex flex-column gap-2 overflow-auto pe-1" style="max-height: 450px;">
+          <!-- Resolved cards inserted dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- New Issues Column -->
+    <div class="col-md-6">
+      <div class="card card-custom p-4 border-top border-4 border-danger h-100">
+        <h5 class="fw-bold text-danger mb-3"><i class="bi bi-exclamation-octagon-fill me-2"></i>Newly Introduced Issues (<span id="newCount">0</span>)</h5>
+        <div id="newList" class="d-flex flex-column gap-2 overflow-auto pe-1" style="max-height: 450px;">
+          <!-- New cards inserted dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+let currentProjects = {};
+
+document.getElementById('compareProjectSelect').addEventListener('change', async (e) => {
+  const projId = e.target.value;
+  const r1 = document.getElementById('review1Select');
+  const r2 = document.getElementById('review2Select');
+  const btn = document.getElementById('runCompareBtn');
+
+  if (!projId) {
+    r1.disabled = true; r2.disabled = true; btn.disabled = true;
+    return;
+  }
+
+  const res = await fetch(`/api/reviews/?project=${projId}`, { headers: API.getHeaders() });
+  const reviews = await res.json();
+
+  r1.innerHTML = '<option value="">-- Select Base Version --</option>';
+  r2.innerHTML = '<option value="">-- Select New Version --</option>';
+
+  reviews.forEach((r, idx) => {
+    r1.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${r.quality_score} (${r.filename})</option>`;
+    r2.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${r.quality_score} (${r.filename})</option>`;
+  });
+
+  r1.disabled = false;
+  r2.disabled = false;
+  btn.disabled = false;
+});
+
+document.getElementById('runCompareBtn').addEventListener('click', async () => {
+  const r1Val = document.getElementById('review1Select').value;
+  const r2Val = document.getElementById('review2Select').value;
+
+  if (!r1Val || !r2Val) {
+    alert('Please select both Version 1 and Version 2.');
+    return;
+  }
+
+  const data = await API.compareReviews(r1Val, r2Val);
+
+  document.getElementById('compareResults').classList.remove('d-none');
+  
+  document.getElementById('v1Score').innerText = data.review1.quality_score;
+  document.getElementById('v1Meta').innerText = `Version ${data.review1.version} (${data.review1.filename})`;
+
+  document.getElementById('v2Score').innerText = data.review2.quality_score;
+  document.getElementById('v2Meta').innerText = `Version ${data.review2.version} (${data.review2.filename})`;
+
+  const delta = data.score_delta;
+  const scoreDeltaEl = document.getElementById('scoreDelta');
+  scoreDeltaEl.innerText = (delta >= 0 ? '+' : '') + delta;
+  scoreDeltaEl.className = `display-5 fw-extrabold ${delta >= 0 ? 'text-success' : 'text-danger'}`;
+
+  // Resolved list
+  document.getElementById('resolvedCount').innerText = data.resolved_count;
+  const resList = document.getElementById('resolvedList');
+  resList.innerHTML = '';
+  if (data.resolved_findings.length === 0) {
+    resList.innerHTML = '<div class="text-muted small py-3">No findings were resolved in this version.</div>';
+  } else {
+    data.resolved_findings.forEach(f => {
+      resList.innerHTML += `
+        <div class="card card-custom p-3 bg-beige-soft border-success">
+          <div class="d-flex justify-content-between">
+            <span class="badge severity-${f.severity}">${f.severity}</span>
+            <span class="text-success small fw-bold">FIXED</span>
+          </div>
+          <div class="fw-bold text-dark mt-1 small">${f.title}</div>
+          <div class="text-muted small">${f.message}</div>
+        </div>
+      `;
+    });
+  }
+
+  // New list
+  document.getElementById('newCount').innerText = data.new_count;
+  const newList = document.getElementById('newList');
+  newList.innerHTML = '';
+  if (data.new_findings.length === 0) {
+    newList.innerHTML = '<div class="text-muted small py-3">No new issues introduced! Excellent work.</div>';
+  } else {
+    data.new_findings.forEach(f => {
+      newList.innerHTML += `
+        <div class="card card-custom p-3 bg-beige-soft border-danger">
+          <div class="d-flex justify-content-between">
+            <span class="badge severity-${f.severity}">${f.severity}</span>
+            <span class="text-danger small fw-bold">NEW ISSUE</span>
+          </div>
+          <div class="fw-bold text-dark mt-1 small">${f.title}</div>
+          <div class="text-muted small">${f.message}</div>
+        </div>
+      `;
+    });
+  }
+});
+</script>
+{% endblock %}
+{% endblock %}

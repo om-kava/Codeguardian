@@ -1,0 +1,129 @@
+================================================================================
+                    CODEGUARDIAN AI - COMPLETE TECHNICAL DOCUMENTATION
+================================================================================
+
+1. SYSTEM OVERVIEW & CORE PHILOSOPHY
+--------------------------------------------------------------------------------
+CodeGuardian AI is an automated code review and AI refactoring platform. It combines
+deterministic static analysis engines (Python AST, Bandit, Radon, Ruff) with generative
+AI (Google Gemini 1.5 Flash) to inspect, grade, and refactor source code across all
+programming languages.
+
+Key Capabilities:
+- Polyglot Support: Python, JavaScript, TypeScript, Java, C/C++, Go, Rust, PHP, SQL.
+- Line-by-Line Health Inspection: Identifies WHAT is wrong, WHERE it is, and HOW to fix it.
+- 1-Click AI Refactoring: Automatically fixes OWASP Top 10 security bugs, XSS, and SQLi.
+- Score Monotonicity Guarantee: Score_new >= Score_old (AI fixes will never lower scores).
+- GitHub Repository Audits: Connects directly to GitHub repos to scan all files.
+
+
+2. STEP-BY-STEP RUNNING GUIDE
+--------------------------------------------------------------------------------
+Step 1: Open Terminal in project directory:
+        cd c:\Users\Victus\Desktop\Projects\codegurdian
+
+Step 2: Activate Virtual Environment:
+        Windows: venv\Scripts\activate
+        Mac/Linux: source venv/bin/activate
+
+Step 3: Run Migrations:
+        python manage.py migrate
+
+Step 4: Launch Dev Server:
+        python manage.py runserver 127.0.0.1:8000
+
+Step 5: Open Browser:
+        http://127.0.0.1:8000/
+
+Default Credentials:
+- Username: demo
+- Password: demo12345
+
+
+3. ANALYSIS ENGINES BREAKDOWN
+--------------------------------------------------------------------------------
+1) ReviewEngine (apps/analyzer/engine.py):
+   Orchestrates language detection. Routes Python files to Python static tools and
+   non-Python files to UniversalAIAnalyzer. Executes the Score Monotonicity Guard.
+
+2) AST Analyzer (apps/analyzer/ast_analyzer.py):
+   Parses Python syntax trees using native ast module. Checks PEP 257 docstrings,
+   mutable default args (items=[]), and global variable declarations.
+
+3) Bandit Security Scanner (apps/analyzer/bandit_analyzer.py):
+   Scans AST for security vulnerabilities:
+   - B105: Hardcoded credentials and secret API keys.
+   - B307: Dynamic eval() call risks.
+   - B602: Shell injection risks (os.system, exec).
+   - B110: Bare except: clauses hiding critical system errors.
+
+4) Radon Complexity & Maintainability (apps/analyzer/radon_analyzer.py):
+   Calculates Cyclomatic Complexity (Rank A to F) and Maintainability Index (0 to 100).
+
+5) Ruff Linter (apps/analyzer/ruff_analyzer.py):
+   Enforces PEP 8 style standards (unused imports F401, line length limits).
+
+6) Universal Polyglot AI Analyzer (apps/analyzer/universal_analyzer.py):
+   Analyzes 15+ non-Python languages (JavaScript, TypeScript, Java, C++, Go, Rust, SQL).
+   Detects DOM XSS (innerHTML), SQL Injection concatenation, and C/C++ buffer overflows.
+   generate_polyglot_refactor() automatically fixes vulnerabilities across all languages.
+
+7) Quality Scorer (apps/analyzer/scoring.py):
+   Calculates deductive quality score out of 100.0 points:
+   - Critical Severity: -15.0 points
+   - High Severity: -10.0 points
+   - Medium Severity: -5.0 points
+   - Low Severity: -2.0 points
+   Grades: Grade A (90-100), Grade B (80-89), Grade C (70-79), Grade D (60-69), Grade F (<60).
+
+
+4. DATABASE SCHEMA (DJANGO MODELS)
+--------------------------------------------------------------------------------
+1) Project (apps/projects/models.py):
+   - owner: User ForeignKey
+   - name: Project title
+   - description: Text description
+   - repository_url: Linked GitHub repository URL
+   - language: Primary programming language
+
+2) CodeReview (apps/reviews/models.py):
+   - project: Project ForeignKey
+   - user: User ForeignKey
+   - filename: File name analyzed (e.g. server.js)
+   - version: Version counter (v1, v2...)
+   - raw_code: Original code
+   - quality_score: Score (0.0 to 100.0)
+   - letter_grade: Grade ('A', 'B', 'C', 'D', 'F')
+   - summary: Gemini AI summary text
+   - suggested_code: AI refactored code
+   - metrics_json: LOC and severity counts JSON
+
+3) Finding (apps/reviews/models.py):
+   - review: CodeReview ForeignKey
+   - analyzer: Engine name (AST, Bandit, Radon, Ruff, Gemini)
+   - severity: CRITICAL, HIGH, MEDIUM, LOW, INFO
+   - line_number: Line number of error
+   - code_snippet: Code snippet
+   - title: Short issue title
+   - message: Detailed explanation
+   - recommendation: Step-by-step resolution advice
+
+
+5. AUTHENTICATION ARCHITECTURE
+--------------------------------------------------------------------------------
+FlexibleJWTAuthentication (apps/authentication/auth.py):
+Catches expired or invalid JWT tokens and returns None instead of throwing 401 error,
+allowing Django Session cookies to authenticate seamlessly.
+
+
+6. REST API ENDPOINTS
+--------------------------------------------------------------------------------
+- POST /api/auth/login/              User login
+- POST /api/auth/register/           User registration
+- POST /api/projects/                Create project
+- POST /api/reviews/analyze_instant/ Instant studio live analysis
+- POST /api/reviews/fetch_github/    Fetch GitHub repo files
+- POST /api/reviews/audit_repo/      Full multi-file repository audit
+- GET  /api/reviews/compare/         Version history comparison
+
+================================================================================
