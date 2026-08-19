@@ -1,56 +1,57 @@
-# CodeGuardian AI
+<div align="center">
+  <img src="https://img.icons8.com/color/96/000000/shield.png" alt="CodeGuardian Shield"/>
+  <h1>CodeGuardian AI</h1>
+  <p><strong>Intelligent, Automated Code Review & Security Analysis Platform</strong></p>
+  
+  [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
+  [![Django](https://img.shields.io/badge/Django-5.0-092E20.svg)](https://djangoproject.com)
+  [![AI](https://img.shields.io/badge/AI-OpenRouter_&_Gemini-success.svg)](https://openrouter.ai/)
+  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+</div>
 
-Intelligent first-level code review for modern development teams.
+---
 
-## Project Overview
-CodeGuardian AI is an automated, AI-powered software engineering quality platform. It provides deterministic static analysis coupled with Google Gemini's AI reasoning to identify security vulnerabilities, code quality issues, maintainability problems, and poor coding practices in Python applications.
+## 🌟 Overview
+**CodeGuardian AI** is an advanced software engineering platform that acts as your automated first-level code reviewer. By combining lightning-fast deterministic static analysis with deep AI reasoning, CodeGuardian identifies security vulnerabilities, code smells, and performance bottlenecks *before* they reach human review.
 
-## Problem
-AI coding assistants have dramatically increased the amount of code developers can produce. However, faster code generation can also create insecure, complex, and unmaintainable code. Human reviewers spend significant time identifying these issues manually.
+## 🚀 Key Features
 
-## Solution
-CodeGuardian AI provides an automated first-pass review, combining strict deterministic static code analysis with intelligent AI-powered explanations. It acts as an intelligent first-level code reviewer, catching common problems before the code reaches a human reviewer.
+* **🛡️ Polyglot Support**: Analyze Python, JavaScript, TypeScript, Java, C++, Go, Rust, PHP, SQL, and HTML.
+* **🧠 Dual-Engine Analysis**: Uses both strict static analysis tools (Bandit, Radon, Ruff) and AI models for contextual insights.
+* **📊 Visual Dashboards**: Real-time metrics on your code health, quality scores, and maintainability via Chart.js.
+* **🌐 GitHub Integration**: Directly fetch and analyze files from public GitHub repositories.
+* **🤖 One-Click AI Fixes**: Automatically refactor vulnerable or messy code with AI-generated solutions.
+* **📱 Mobile Responsive**: Carefully crafted, aesthetic UI that works flawlessly on desktop and mobile.
 
-## Features
-- Secure Authentication via JWT.
-- Project & Repository management.
-- Dual-engine Code Analysis (Deterministic Static Analysis + Google Gemini AI).
-- Transparent Quality Scoring (Security, Quality, Maintainability, Complexity, Performance).
-- Issue Severity Grouping (Critical, High, Medium, Low, Info).
-- Professional Dashboard with Chart.js analytics.
-- Code Review History and Version Comparison.
+## 🏗️ Architecture & Tech Stack
 
-## Architecture
-CodeGuardian AI uses a modular Django architecture, strictly separating concerns:
-- **`accounts/`**: Authentication and user-related functionality.
-- **`projects/`**: Project management and code submissions.
-- **`reviews/`**: Review records, issues, reports, scores, and history.
-- **`analyzer/`**: Deterministic static analysis logic (AST, Ruff, Bandit, Radon).
-- **`ai_engine/`**: Gemini API integration and AI reasoning.
-- **`dashboard/`**: UI views and analytics.
+CodeGuardian relies on a robust and modular architecture:
 
-## Tech Stack
-- **Backend:** Python 3, Django, Django REST Framework
-- **Database:** MySQL
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript, Bootstrap 5, Chart.js
-- **AI Integration:** Google Gemini API
-- **Static Analysis Tools:** Python AST, Ruff, Bandit, Radon
+* **Backend**: Python, Django, Django REST Framework
+* **Database**: SQLite (Configured with persistent disk support for cloud deployment)
+* **Frontend**: HTML5, Vanilla CSS (Custom Design System), JavaScript, Bootstrap 5
+* **AI Engine**: OpenRouter API (Gemini/Llama integration)
 
-## Installation & Setup
+## 💻 Local Setup & Installation
 
-1. **Clone the repository**
+Follow these steps to run CodeGuardian locally on your machine.
+
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/yourusername/codeguardian-ai.git
-   cd codeguardian-ai
+   git clone https://github.com/om-kava/Codeguardian.git
+   cd Codeguardian
    ```
 
-2. **Create a virtual environment**
+2. **Create a Virtual Environment**
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
    ```
 
-3. **Install dependencies**
+3. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
@@ -58,60 +59,41 @@ CodeGuardian AI uses a modular Django architecture, strictly separating concerns
 4. **Environment Variables**
    Create a `.env` file in the root directory based on `.env.example`:
    ```env
-   SECRET_KEY=your-secret-key
+   SECRET_KEY=your_secure_random_key
    DEBUG=True
-   GEMINI_API_KEY=your-gemini-key
-   DB_ENGINE=django.db.backends.mysql
-   DB_NAME=codeguardian
-   DB_USER=root
-   DB_PASSWORD=your-password
-   DB_HOST=localhost
-   DB_PORT=3306
+   OPENROUTER_API_KEY=your_openrouter_key
    ```
 
-5. **Database Setup (MySQL)**
-   Ensure MySQL is running locally and create the database:
-   ```sql
-   CREATE DATABASE codeguardian;
-   ```
-   Then run migrations:
+5. **Database Migration**
    ```bash
    python manage.py migrate
    ```
 
-6. **Running Locally**
+6. **Run the Development Server**
    ```bash
    python manage.py runserver
    ```
-   Visit `http://127.0.0.1:8000`
+   *Visit `http://127.0.0.1:8000` in your browser.*
 
-## API Documentation
-The REST API uses JWT for authentication.
+## ☁️ Cloud Deployment (Render)
 
-- `POST /api/auth/register/` - Register a new user
-- `POST /api/auth/login/` - Obtain JWT tokens
-- `GET /api/projects/` - List user projects
-- `POST /api/projects/` - Create a project
-- `POST /api/projects/<id>/submissions/` - Submit code for analysis
-- `GET /api/dashboard/` - Retrieve dashboard analytics
+CodeGuardian is pre-configured to deploy seamlessly to [Render](https://render.com/). 
 
-## Testing
-Run the automated test suite using Django's test runner:
-```bash
-python manage.py test
-```
+1. Go to your Render Dashboard and create a **New Blueprint**.
+2. Connect your fork of this repository.
+3. Render will automatically read the `render.yaml` file, provision the server and persistent database disk, and prompt you for your `OPENROUTER_API_KEY`.
+4. Click **Apply**! Your app will be live in minutes.
 
-## Security
-- User-submitted code is **never** executed (no `eval()` or `exec()`).
-- Strict validation and isolation of user data.
-- Passwords hashed using Django's built-in `PBKDF2`.
-- Secure JWT authentication for API endpoints.
+## 🔒 Security
 
-## Future Roadmap
-- GitHub repository integration.
-- Automated Pull Request analysis.
-- Multi-language support (JavaScript, Java, C++).
-- Team accounts and analytics.
+* **No Code Execution**: User-submitted code is strictly parsed (AST) and analyzed; it is never executed (`eval()` or `exec()`).
+* **Secure Cookies**: In production, the app enforces HTTPS, strict HSTS, and secure flags for CSRF/Session cookies.
+* **Password Hashing**: Django's robust `PBKDF2` hashing algorithm protects user accounts.
 
-## Author
-CodeGuardian AI Implementation
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+<div align="center">
+  <b>Built with ❤️ by Om Kava</b>
+</div>
