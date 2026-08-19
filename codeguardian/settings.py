@@ -79,12 +79,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'codeguardian.wsgi.application'
 
 # Database configuration
-# In production on Render, we use a persistent disk mounted at /data
-DB_PATH = '/data/db.sqlite3' if not DEBUG else BASE_DIR / 'db.sqlite3'
+# Using ephemeral local SQLite since we are deploying as a free Web Service without a disk
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': DB_PATH,
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
