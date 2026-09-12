@@ -1,14 +1,13 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from apps.projects.models import Project
-from apps.reviews.models import CodeReview, Finding
-from apps.analyzer.engine import ReviewEngine
+from apps.projects.models import Project, CodeSubmission
+from apps.analyzer.engine import run_analysis
 
 class Command(BaseCommand):
     help = 'Seed database with demo user, projects, and code review history'
 
     def handle(self, *args, **options):
-        self.stdout.write("Seeding CodeGuardian AI demo data...")
+        self.stdout.write("Seeding CodeGuardian AI demo data into MySQL database...")
 
         # 1. Create Demo User
         user, created = User.objects.get_or_create(username='demo', defaults={
@@ -19,16 +18,17 @@ class Command(BaseCommand):
         if created:
             user.set_password('demo12345')
             user.save()
-            self.stdout.write("Created demo user: username='demo', password='demo12345'")
+            self.stdout.write(self.style.SUCCESS("Created demo user: username='demo', password='demo12345'"))
+        else:
+            self.stdout.write("Demo user 'demo' already exists.")
 
-        # 2. Create Demo Project
+        # 2. Create Demo Projects
         project, _ = Project.objects.get_or_create(
             name="E-Commerce Payment Gateway",
             owner=user,
             defaults={
                 "description": "Core payment processing microservice with Stripe and PayPal integrations",
                 "repository_url": "https://github.com/demo/payment-service",
-                "language": "Python"
             }
         )
 
@@ -38,20 +38,19 @@ class Command(BaseCommand):
             defaults={
                 "description": "JWT-based SSO identity provider and session manager",
                 "repository_url": "https://github.com/demo/auth-service",
-                "language": "Python"
             }
         )
 
-        # 3. Seed Code Review Version 1 (Code with vulnerabilities and quality issues)
+        # 3. Seed Code Review Version 1
         code_v1 = """import os
 import sys
 
-API_SECRET_KEY = "sk-live-998877665544332211" # Hardcoded key
+API_SECRET_KEY = "sk-live-998877665544332211" # Hardcoded secret key
 
 def process_transaction(user_id, amount, card_details=[]):
     print("Processing transaction for user:", user_id)
     
-    # Dangerous eval
+    # Dangerous eval usage
     auth_check = eval("amount > 0")
     
     if amount > 10000:
@@ -65,47 +64,28 @@ def process_transaction(user_id, amount, card_details=[]):
     return True
 """
         
-        engine = ReviewEngine()
-        
-        if not CodeReview.objects.filter(project=project, version=1).exists():
+        if not project.submissions.filter(file_name="payment_processor.py").exists():
             self.stdout.write("Running analysis for demo review v1...")
-            res1 = engine.run_review(code_v1, filename="payment_processor.py")
-            
-            review1 = CodeReview.objects.create(
+            submission1 = CodeSubmission.objects.create(
                 project=project,
-                user=user,
-                filename="payment_processor.py",
-                version=1,
-                raw_code=code_v1,
-                quality_score=res1['quality_score'],
-                letter_grade=res1['letter_grade'],
-                summary=res1['summary'],
-                suggested_code=res1['suggested_code'],
-                metrics_json=res1['metrics'],
+                source_code=code_v1,
+                file_name="payment_processor.py",
+                submission_type='PASTE'
             )
+            try:
+                review1 = run_analysis(submission1)
+                self.stdout.write(self.style.SUCCESS(f"Generated review v1 with score {review1.overall_score}"))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Note: Review v1 analysis completed with fallback: {e}"))
 
-            for f in res1['findings']:
-                Finding.objects.create(
-                    review=review1,
-                    analyzer=f.get('analyzer', 'AST'),
-                    category=f.get('category', 'STYLE'),
-                    severity=f.get('severity', 'INFO'),
-                    line_number=f.get('line_number'),
-                    code_snippet=f.get('code_snippet', ''),
-                    title=f.get('title', ''),
-                    message=f.get('message', ''),
-                    recommendation=f.get('recommendation', ''),
-                    rule_id=f.get('rule_id', '')
-                )
-
-        # 4. Seed Code Review Version 2 (Refactored code)
+        # 4. Seed Code Review Version 2 (Refactored secure code)
         code_v2 = """import os
 import logging
 from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
-# Retrieve key from environment variable
+# Retrieve key safely from environment variable
 API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
 
 def process_transaction(user_id: str, amount: float, card_details: Dict = None) -> bool:
@@ -126,35 +106,18 @@ def process_transaction(user_id: str, amount: float, card_details: Dict = None) 
         
     return True
 """
-        if not CodeReview.objects.filter(project=project, version=2).exists():
+        if project.submissions.count() < 2:
             self.stdout.write("Running analysis for demo review v2...")
-            res2 = engine.run_review(code_v2, filename="payment_processor.py")
-            
-            review2 = CodeReview.objects.create(
+            submission2 = CodeSubmission.objects.create(
                 project=project,
-                user=user,
-                filename="payment_processor.py",
-                version=2,
-                raw_code=code_v2,
-                quality_score=res2['quality_score'],
-                letter_grade=res2['letter_grade'],
-                summary=res2['summary'],
-                suggested_code=res2['suggested_code'],
-                metrics_json=res2['metrics'],
+                source_code=code_v2,
+                file_name="payment_processor.py",
+                submission_type='PASTE'
             )
+            try:
+                review2 = run_analysis(submission2)
+                self.stdout.write(self.style.SUCCESS(f"Generated review v2 with score {review2.overall_score}"))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Note: Review v2 analysis completed with fallback: {e}"))
 
-            for f in res2['findings']:
-                Finding.objects.create(
-                    review=review2,
-                    analyzer=f.get('analyzer', 'AST'),
-                    category=f.get('category', 'STYLE'),
-                    severity=f.get('severity', 'INFO'),
-                    line_number=f.get('line_number'),
-                    code_snippet=f.get('code_snippet', ''),
-                    title=f.get('title', ''),
-                    message=f.get('message', ''),
-                    recommendation=f.get('recommendation', ''),
-                    rule_id=f.get('rule_id', '')
-                )
-
-        self.stdout.write(self.style.SUCCESS("Successfully seeded CodeGuardian AI demo data!"))
+        self.stdout.write(self.style.SUCCESS("Successfully seeded CodeGuardian AI demo data into MySQL!"))

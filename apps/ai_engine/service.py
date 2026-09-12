@@ -60,7 +60,8 @@ def run_ai_review(code: str, static_findings: list) -> dict:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
-            json=data
+            json=data,
+            timeout=15
         )
         response.raise_for_status()
         result = response.json()
