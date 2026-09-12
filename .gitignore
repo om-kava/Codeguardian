@@ -24,3 +24,6 @@ staticfiles/
 # System files
 .DS_Store
 Thumbs.db
+
+# Personal notes
+INTERVIEW_PREPARATION_GUIDE.txt
