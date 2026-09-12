@@ -2,6 +2,7 @@ from .ast_analyzer import ASTAnalyzer
 from .bandit_analyzer import BanditAnalyzer
 from .radon_analyzer import RadonAnalyzer
 from .ruff_analyzer import RuffAnalyzer
+from .polyglot_analyzer import PolyglotAnalyzer
 from .scoring import QualityScorer
 
 class ReviewEngine:
@@ -10,6 +11,7 @@ class ReviewEngine:
         self.bandit_analyzer = BanditAnalyzer()
         self.radon_analyzer = RadonAnalyzer()
         self.ruff_analyzer = RuffAnalyzer()
+        self.polyglot_analyzer = PolyglotAnalyzer()
         self.scorer = QualityScorer()
 
     def run_review(self, submission):
@@ -26,26 +28,31 @@ class ReviewEngine:
             'comments': 0,
         }
 
-        # Check if the file is Python. If not, skip Python-specific static analysis tools.
         filename = getattr(submission, 'file_name', getattr(submission, 'filename', 'main.py')) or 'main.py'
         is_python = filename.lower().endswith('.py')
 
+        # 1. Polyglot Static & Security Analysis (All Languages)
+        poly_findings, poly_metrics = self.polyglot_analyzer.analyze(code, filename)
+        all_findings.extend(poly_findings)
+        combined_metrics.update(poly_metrics)
+
+        # 2. Python-specific Deep Static Analyzers
         if is_python:
-            # 1. AST Analysis
+            # AST Analysis
             ast_findings, ast_metrics = self.ast_analyzer.analyze(code)
             all_findings.extend(ast_findings)
             combined_metrics.update(ast_metrics)
     
-            # 2. Bandit Analysis
+            # Bandit Security Analysis
             bandit_findings = self.bandit_analyzer.analyze(code)
             all_findings.extend(bandit_findings)
     
-            # 3. Radon Analysis
+            # Radon Complexity Analysis
             radon_findings, radon_metrics = self.radon_analyzer.analyze(code)
             all_findings.extend(radon_findings)
             combined_metrics.update(radon_metrics)
     
-            # 4. Ruff Style Analysis
+            # Ruff Style Analysis
             ruff_findings = self.ruff_analyzer.analyze(code)
             all_findings.extend(ruff_findings)
 
