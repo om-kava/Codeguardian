@@ -69,7 +69,8 @@ def run_analysis(submission):
     static_findings, metrics = engine.run_review(submission)
     
     # 5. Gemini AI Analysis
-    ai_result = run_ai_review(submission.source_code, static_findings)
+    filename = getattr(submission, 'file_name', 'main.py') or 'main.py'
+    ai_result = run_ai_review(submission.source_code, static_findings, filename=filename)
 
     # 6. Quality Scoring
     scorer = QualityScorer()

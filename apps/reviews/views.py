@@ -77,7 +77,7 @@ class AnalyzeInstantView(APIView):
         static_findings, metrics = engine.run_review(dummy_sub)
         
         # Run AI analysis
-        ai_result = run_ai_review(code, static_findings)
+        ai_result = run_ai_review(code, static_findings, filename=filename)
         
         # Quality Scoring
         scorer = QualityScorer()
@@ -188,7 +188,7 @@ class AuditRepositoryView(APIView):
         combined_code = "\n\n".join([f"### File: {f['path']}\n{f['code']}" for f in files])
         
         # AI analysis across the files
-        ai_result = run_ai_review(combined_code, all_static_findings)
+        ai_result = run_ai_review(combined_code, all_static_findings, filename="Repository_Audit")
         
         # Quality Scoring
         scorer = QualityScorer()

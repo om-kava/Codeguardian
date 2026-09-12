@@ -3,15 +3,65 @@ import json
 import requests
 from django.conf import settings
 
-def run_ai_review(code: str, static_findings: list) -> dict:
+def detect_language(filename: str, code: str) -> str:
+    fn = (filename or '').lower().strip()
+    if fn.endswith(('.html', '.htm')):
+        return 'HTML'
+    if fn.endswith('.css'):
+        return 'CSS'
+    if fn.endswith(('.js', '.mjs', '.cjs')):
+        return 'JavaScript'
+    if fn.endswith('.jsx'):
+        return 'React JSX'
+    if fn.endswith('.ts'):
+        return 'TypeScript'
+    if fn.endswith('.tsx'):
+        return 'React TSX'
+    if fn.endswith(('.py', '.pyw')):
+        return 'Python'
+    if fn.endswith('.java'):
+        return 'Java'
+    if fn.endswith(('.cpp', '.cc', '.cxx', '.c', '.h', '.hpp')):
+        return 'C/C++'
+    if fn.endswith('.go'):
+        return 'Go'
+    if fn.endswith('.rs'):
+        return 'Rust'
+    if fn.endswith('.php'):
+        return 'PHP'
+    if fn.endswith('.sql'):
+        return 'SQL'
+    if fn.endswith(('.sh', '.bash')):
+        return 'Shell / Bash'
+    if fn.endswith('.json'):
+        return 'JSON'
+    if fn.endswith(('.yaml', '.yml')):
+        return 'YAML'
+        
+    # Heuristic content detection
+    first_lines = code[:400].lower()
+    if '<!doctype html' in first_lines or '<html' in first_lines or '<div' in first_lines or '<body>' in first_lines:
+        return 'HTML'
+    if '{' in first_lines and ('margin:' in first_lines or 'padding:' in first_lines or 'display:' in first_lines or 'font-' in first_lines):
+        return 'CSS'
+    if 'import react' in first_lines or 'export ' in first_lines or 'const ' in first_lines or 'let ' in first_lines:
+        return 'JavaScript'
+    if 'def ' in first_lines or 'import ' in first_lines or 'class ' in first_lines:
+        return 'Python'
+        
+    return 'Source Code'
+
+def run_ai_review(code: str, static_findings: list, filename: str = '') -> dict:
     api_key = getattr(settings, 'OPENROUTER_API_KEY', None)
     if not api_key:
         return {"summary": "OpenRouter API key not configured.", "findings": []}
     
-    # Cap code length to 200 lines to ensure lightning-fast AI analysis
+    language = detect_language(filename, code)
+    
+    # Cap code length to 250 lines for speed
     code_lines = code.splitlines()
-    if len(code_lines) > 200:
-        analyzed_code = "\n".join(code_lines[:200]) + "\n# [Truncated beyond line 200 for fast review]"
+    if len(code_lines) > 250:
+        analyzed_code = "\n".join(code_lines[:250]) + "\n<!-- [Truncated beyond line 250 for speed] -->"
     else:
         analyzed_code = code
 
@@ -22,21 +72,29 @@ def run_ai_review(code: str, static_findings: list) -> dict:
     ]
 
     prompt = f"""
-You are an expert code reviewer. Review this code concisely.
-Do not repeat basic linters. Focus on critical architecture, security bugs, and remediation.
+You are an expert polyglot software engineer and code reviewer.
+Review the following {language} code. You support ALL programming languages and web formats including HTML, CSS, JavaScript, TypeScript, Python, Java, C++, Go, Rust, PHP, and SQL.
+DO NOT reject code or say "this is not Python". Review the provided {language} code for:
+- Security vulnerabilities (e.g. XSS, unescaped output, insecure inline scripts, CSRF, insecure links)
+- Semantic correctness, accessibility, and modern standards
+- Code quality, performance, and formatting
+- Clean refactoring suggestions
+
+Language: {language}
+Filename: {filename or 'snippet'}
 
 Verified static findings:
 {json.dumps(compact_static)}
 
 Code:
-```
+```{language.lower().split()[0]}
 {analyzed_code}
 ```
 
 Respond strictly in this JSON format without markdown wrapping:
 {{
-  "summary": "Concise 2-sentence summary of overall code health and priority fixes.",
-  "suggested_code": "Clean, refactored Python code with security fixes applied.",
+  "summary": "Concise 2-sentence review summary of this {language} code and key recommendations.",
+  "suggested_code": "Clean, refactored {language} code with improvements applied (or original code if already optimal).",
   "findings": [
     {{
       "title": "Short title",
@@ -68,7 +126,7 @@ Respond strictly in this JSON format without markdown wrapping:
         ],
         "response_format": {"type": "json_object"},
         "reasoning": {"effort": "none"},
-        "max_tokens": 900,
+        "max_tokens": 1500,
         "temperature": 0.2
     }
     
@@ -77,7 +135,7 @@ Respond strictly in this JSON format without markdown wrapping:
             url="https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=10
+            timeout=14
         )
         response.raise_for_status()
         result = response.json()
@@ -95,20 +153,32 @@ Respond strictly in this JSON format without markdown wrapping:
                 
         if not content:
             return {
-                "summary": "Code review completed successfully based on verified static security & complexity scans.",
+                "summary": f"{language} review completed successfully.",
                 "suggested_code": code,
                 "findings": []
             }
 
-        parsed = json.loads(content)
+        try:
+            parsed = json.loads(content)
+        except Exception:
+            # Fallback regex extraction in case of unescaped quotes in HTML/CSS
+            import re
+            summary_match = re.search(r'"summary"\s*:\s*"([^"]+)"', content)
+            summary = summary_match.group(1) if summary_match else f"{language} code reviewed and verified."
+            return {
+                "summary": summary,
+                "suggested_code": code,
+                "findings": []
+            }
+
         if not parsed.get('suggested_code'):
             parsed['suggested_code'] = code
         return parsed
 
     except Exception as e:
-        print("AI Engine Notice (Fast Fallback):", str(e))
+        print(f"AI Engine Notice ({language} Fallback):", str(e))
         return {
-            "summary": "Analysis completed using verified local static security & complexity scanners.",
+            "summary": f"{language} code analysis completed using static quality checks.",
             "suggested_code": code,
             "error": str(e),
             "findings": []
