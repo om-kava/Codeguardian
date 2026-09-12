@@ -83,20 +83,32 @@ TEMPLATES = [
 WSGI_APPLICATION = 'codeguardian.wsgi.application'
 
 # Database configuration
-# Connects to MySQL using environment variables
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
-        'NAME': os.getenv('DB_NAME', 'codeguardian'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+# 1. Locally: Connects to your real local MySQL database via .env
+# 2. Render (Online): If deployed without a cloud MySQL host, gracefully falls back to SQLite so Render stays online and working
+IS_RENDER = os.getenv('RENDER') is not None
+REMOTE_DB_CONFIGURED = bool(os.getenv('DB_HOST') and os.getenv('DB_HOST') not in ('localhost', '127.0.0.1'))
+
+if IS_RENDER and not REMOTE_DB_CONFIGURED:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
+            'NAME': os.getenv('DB_NAME', 'codeguardian'),
+            'USER': os.getenv('DB_USER', 'root'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+            }
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
