@@ -39,9 +39,11 @@ def run_ai_review(code: str, static_findings: list) -> dict:
     }}
     """
     
+    site_url = os.getenv('SITE_URL', 'https://github.com/om-kava/Codeguardian')
+    
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "HTTP-Referer": "http://localhost:8000",
+        "HTTP-Referer": site_url,
         "X-Title": "CodeGuardian AI",
         "Content-Type": "application/json"
     }
