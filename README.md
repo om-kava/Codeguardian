@@ -5,6 +5,7 @@
   
   [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
   [![Django](https://img.shields.io/badge/Django-5.0-092E20.svg)](https://djangoproject.com)
+  [![MySQL](https://img.shields.io/badge/Database-MySQL_&_SQLite-00758F.svg)](https://mysql.com)
   [![AI](https://img.shields.io/badge/AI-OpenRouter_&_Gemini-success.svg)](https://openrouter.ai/)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
@@ -27,10 +28,11 @@
 
 CodeGuardian relies on a robust and modular architecture:
 
-* **Backend**: Python, Django, Django REST Framework
-* **Database**: SQLite (Configured with persistent disk support for cloud deployment)
-* **Frontend**: HTML5, Vanilla CSS (Custom Design System), JavaScript, Bootstrap 5
-* **AI Engine**: OpenRouter API (Gemini/Llama integration)
+* **Backend**: Python 3.13, Django 5.0, Django REST Framework, JWT Authentication
+* **Database**: MySQL (Production & Local relational database) with pure-Python PyMySQL driver and SQLite fallback
+* **Frontend**: HTML5, Vanilla CSS (Custom Glassmorphic Design System), JavaScript, Bootstrap 5
+* **Static Analysis**: Python AST, Bandit (Security AST), Radon (Cyclomatic Complexity & Maintainability Index), Ruff rules
+* **AI Engine**: OpenRouter API (Gemini & DeepSeek LLM reasoning with automated suggested fixes)
 
 ## 💻 Local Setup & Installation
 
@@ -62,6 +64,14 @@ Follow these steps to run CodeGuardian locally on your machine.
    SECRET_KEY=your_secure_random_key
    DEBUG=True
    OPENROUTER_API_KEY=your_openrouter_key
+   
+   # Database Settings (Defaults to MySQL locally)
+   DB_ENGINE=django.db.backends.mysql
+   DB_NAME=codeguardian
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
    ```
 
 5. **Database Migration**
