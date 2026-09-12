@@ -119,10 +119,14 @@ const API = {
   },
 
   async submitReview(formData) {
-    const token = this.getAuthToken();
     const headers = {};
+    const token = this.getAuthToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    const csrftoken = this.getCookie('csrftoken');
+    if (csrftoken) {
+      headers['X-CSRFToken'] = csrftoken;
     }
 
     const res = await fetch('/api/reviews/submit/', {

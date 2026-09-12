@@ -138,8 +138,13 @@ document.getElementById('compareProjectSelect').addEventListener('change', async
   btn.disabled = false;
 
   // Auto-select versions:
-  // Note: reviews are returned ordered by -created_at (reviews[0] is newest)
-  if (reviews.length >= 2) {
+  const pR1 = urlParams.get('review1');
+  const pR2 = urlParams.get('review2');
+  if (pR1 && pR2) {
+    r1.value = pR1;
+    r2.value = pR2;
+    btn.click();
+  } else if (reviews.length >= 2) {
     r1.value = reviews[1].id; // previous version as base
     r2.value = reviews[0].id; // latest version as newer
     // Auto trigger compare so the user gets instant feedback!

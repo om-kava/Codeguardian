@@ -33,7 +33,7 @@
       <strong class="fs-6">AI Refactoring Applied!</strong>
       <span class="ms-2">Code re-analyzed cleanly. Quality Score updated to <strong class="text-success fs-5">{{ review.quality_score }}</strong> (Grade {{ review.letter_grade }}).</span>
     </div>
-    <a href="/reviews/compare/?review1={{ other_reviews.0.id|default:review.id }}&review2={{ review.id }}" class="btn btn-sm btn-success rounded-pill px-3">
+    <a href="/reviews/compare/?project={{ review.project.id }}&review1={{ other_reviews.0.id|default:review.id }}&review2={{ review.id }}" class="btn btn-sm btn-success rounded-pill px-3">
       View Version Delta <i class="bi bi-arrow-right ms-1"></i>
     </a>
   </div>

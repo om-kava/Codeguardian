@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from apps.projects.models import Project, CodeSubmission
 from apps.reviews.models import Review, ReviewIssue
@@ -39,7 +39,7 @@ def projects_view(request):
 
 @login_required(login_url='/login/')
 def project_detail_view(request, project_id):
-    project = Project.objects.get(id=project_id, owner=request.user)
+    project = get_object_or_404(Project, id=project_id, owner=request.user)
     reviews = project.reviews.all().order_by('-created_at')
     
     # Chronological list for chart
@@ -62,7 +62,7 @@ def review_studio_view(request):
 
 @login_required(login_url='/login/')
 def review_report_view(request, review_id):
-    review = Review.objects.get(id=review_id, project__owner=request.user)
+    review = get_object_or_404(Review, id=review_id, project__owner=request.user)
     findings = review.issues.all()
     project_reviews = review.project.reviews.exclude(id=review.id).order_by('-created_at')
     return render(request, 'review_report.html', {

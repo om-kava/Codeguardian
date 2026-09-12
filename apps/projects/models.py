@@ -27,6 +27,23 @@ class Project(models.Model):
         sum_scores = sum(r.overall_score for r in self.reviews.all())
         return round(sum_scores / total, 1)
 
+    @property
+    def language(self):
+        last_sub = self.submissions.first()
+        if last_sub and last_sub.file_name:
+            fn = last_sub.file_name.lower()
+            if fn.endswith('.py'): return 'Python'
+            if fn.endswith('.js'): return 'JavaScript'
+            if fn.endswith(('.ts', '.tsx')): return 'TypeScript'
+            if fn.endswith('.java'): return 'Java'
+            if fn.endswith(('.cpp', '.c', '.cc', '.h', '.hpp')): return 'C/C++'
+            if fn.endswith('.sql'): return 'SQL'
+            if fn.endswith(('.html', '.htm', '.css')): return 'HTML/CSS'
+            if fn.endswith('.go'): return 'Go'
+            if fn.endswith('.rs'): return 'Rust'
+            if fn.endswith('.php'): return 'PHP'
+        return 'Polyglot'
+
 class CodeSubmission(models.Model):
     SUBMISSION_TYPES = [
         ('PASTE', 'Pasted Code'),
