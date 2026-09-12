@@ -34,6 +34,31 @@ CodeGuardian relies on a robust and modular architecture:
 * **Static Analysis**: Python AST, Bandit (Security AST), Radon (Cyclomatic Complexity & Maintainability Index), Ruff rules
 * **AI Engine**: OpenRouter API (Gemini & DeepSeek LLM reasoning with automated suggested fixes)
 
+## 📁 Project Structure
+
+```text
+codeguardian/
+├── apps/                         # Modular Django applications
+│   ├── accounts/                 # User authentication, registration & JWT
+│   ├── ai_engine/                # OpenRouter LLM orchestration & AI refactoring
+│   ├── analyzer/                 # Static analysis (AST, Bandit, Radon, Ruff, Scoring)
+│   ├── dashboard/                # Analytics & metrics aggregation views
+│   ├── projects/                 # Workspace projects & submission models
+│   └── reviews/                  # Code reviews, findings & GitHub integration
+├── codeguardian/                 # Project configuration & settings
+│   ├── settings.py               # Dual MySQL/SQLite database & security config
+│   ├── urls.py                   # Master routing
+│   └── wsgi.py                   # Production WSGI application
+├── extra/                        # Supplementary resources & PRD documentation
+├── static/                       # Custom CSS design system & JavaScript API helpers
+├── templates/                    # Responsive HTML views & studio interfaces
+├── build.sh                      # Cloud deployment build pipeline script
+├── manage.py                     # Django administrative entrypoint
+├── render.yaml                   # Production web service blueprint
+├── requirements.txt              # Production Python dependencies
+└── README.md                     # Documentation & setup guide
+```
+
 ## 💻 Local Setup & Installation
 
 Follow these steps to run CodeGuardian locally on your machine.
