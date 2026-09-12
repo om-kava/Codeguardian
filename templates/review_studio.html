@@ -38,7 +38,7 @@
       <select id="projectSelect" class="form-select form-select-sm" required>
         <option value="">-- Select a Project --</option>
         {% for p in projects %}
-        <option value="{{ p.id }}" data-repo="{{ p.repository_url|default:'' }}" {% if selected_project_id == p.id|stringformat:"s" %}selected{% endif %}>
+        <option value="{{ p.id }}" data-repo="{{ p.repository_url|default:'' }}" {% if selected_project_id == p.id|stringformat:"s" or forloop.first and not selected_project_id %}selected{% endif %}>
           {{ p.name }} (Avg Score: {{ p.average_score }})
         </option>
         {% endfor %}
@@ -111,6 +111,27 @@
         </div>
         <div id="scoreBadgeContainer">
           <span class="badge bg-secondary fs-6 px-3 py-2">Score: --</span>
+        </div>
+      </div>
+
+      <!-- Review Saved Notification Banner -->
+      <div id="savedReviewBanner" class="alert alert-success d-none py-2 px-3 mb-3 border-0 rounded-3 shadow-sm">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+          <div>
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            <span id="savedReviewMsg" class="fw-bold small">Saved to Project</span>
+          </div>
+          <div class="d-flex gap-1 flex-wrap">
+            <a id="viewReportBtn" href="#" class="btn btn-sm btn-success py-1 px-2 small">
+              <i class="bi bi-file-earmark-text me-1"></i>Report
+            </a>
+            <a id="compareVersionBtn" href="#" class="btn btn-sm btn-powder-blue py-1 px-2 small">
+              <i class="bi bi-arrow-left-right me-1"></i>Compare
+            </a>
+            <a href="/dashboard/" class="btn btn-sm btn-outline-dark py-1 px-2 small">
+              <i class="bi bi-speedometer2 me-1"></i>Dashboard
+            </a>
+          </div>
         </div>
       </div>
 
@@ -403,6 +424,23 @@ WHERE u.id = '100' OR 1=1;`
         } else {
           aiSummaryBox.classList.add('d-none');
         }
+
+        // Show Saved Review Banner with 1-click links
+        if (res.saved && res.id) {
+          const banner = document.getElementById('savedReviewBanner');
+          const msg = document.getElementById('savedReviewMsg');
+          const reportBtn = document.getElementById('viewReportBtn');
+          const compareBtn = document.getElementById('compareVersionBtn');
+          if (banner) {
+            msg.innerHTML = `Recorded as <strong>v${res.version}</strong> in <strong>${res.project_name}</strong>!`;
+            reportBtn.href = `/reviews/${res.id}/report/`;
+            compareBtn.href = `/reviews/compare/?project=${res.project_id}`;
+            banner.classList.remove('d-none');
+          }
+          if (res.project_id && (!projectSelect.value || projectSelect.value != res.project_id)) {
+            projectSelect.value = res.project_id;
+          }
+        }
       } else {
         alert('Analysis error: ' + (res.error || 'Failed to analyze code.'));
       }
@@ -512,6 +550,34 @@ WHERE u.id = '100' OR 1=1;`
   // Auto trigger project change if selected_project_id is present
   if (projectSelect.value) {
     projectSelect.dispatchEvent(new Event('change'));
+  }
+
+  // Handle URL query parameters (e.g. from Project Detail page "Review File" link)
+  const urlParams = new URLSearchParams(window.location.search);
+  const githubUrlParam = urlParams.get('github_url');
+  const filePathParam = urlParams.get('file_path');
+
+  if (githubUrlParam) {
+    document.getElementById('githubRepoUrl').value = githubUrlParam;
+    activeRepoUrl = githubUrlParam;
+    loadRepoFileDropdown(githubUrlParam).then(async () => {
+      if (filePathParam) {
+        repoFileSelect.value = filePathParam;
+        alertBox.innerHTML = `<div class="alert alert-info py-2"><i class="spinner-border spinner-border-sm me-2"></i>Auto-loading ${filePathParam}...</div>`;
+        try {
+          const res = await API.fetchGitHubCode(githubUrlParam, filePathParam);
+          if (res.code) {
+            codeTextarea.value = res.code;
+            filenameInput.value = res.filename;
+            alertBox.innerHTML = `<div class="alert alert-success py-2">Loaded <strong>${res.filename}</strong>! Running analysis...</div>`;
+            updateCounters();
+            runLiveAnalysis();
+          }
+        } catch (err) {
+          alertBox.innerHTML = `<div class="alert alert-danger py-2">Failed to load ${filePathParam}</div>`;
+        }
+      }
+    });
   }
 });
 </script>

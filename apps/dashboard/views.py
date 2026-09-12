@@ -74,7 +74,11 @@ def review_report_view(request, review_id):
 @login_required(login_url='/login/')
 def compare_view(request):
     projects = Project.objects.filter(owner=request.user)
-    return render(request, 'compare.html', {'projects': projects})
+    selected_project_id = request.GET.get('project')
+    return render(request, 'compare.html', {
+        'projects': projects,
+        'selected_project_id': selected_project_id
+    })
 
 def login_view(request):
     if request.user.is_authenticated:

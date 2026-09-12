@@ -2,7 +2,13 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        return
+
 from .models import Review, ReviewIssue
 from .serializers import ReviewSerializer, ReviewIssueSerializer
 from apps.projects.models import Project, CodeSubmission
@@ -13,7 +19,7 @@ from apps.analyzer.scoring import QualityScorer
 
 class ProjectReviewListView(generics.ListAPIView):
     serializer_class = ReviewSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -22,7 +28,7 @@ class ProjectReviewListView(generics.ListAPIView):
 
 class ReviewListView(generics.ListAPIView):
     serializer_class = ReviewSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -34,14 +40,14 @@ class ReviewListView(generics.ListAPIView):
 
 class ReviewDetailView(generics.RetrieveAPIView):
     serializer_class = ReviewSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Review.objects.filter(project__owner=self.request.user)
 
 class FetchGitHubView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -55,19 +61,20 @@ class FetchGitHubView(APIView):
         return Response(result)
 
 class AnalyzeInstantView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         code = request.data.get('code')
         filename = request.data.get('filename', 'main.py')
+        project_id = request.data.get('project_id')
         
         if not code:
             return Response({"error": "No code provided"}, status=status.HTTP_400_BAD_REQUEST)
             
         engine = ReviewEngine()
         
-        # Create a dummy submission object
+        # Create a dummy submission object for local static analyzers
         class DummySubmission:
             def __init__(self, source_code, file_name):
                 self.source_code = source_code
@@ -76,7 +83,7 @@ class AnalyzeInstantView(APIView):
         dummy_sub = DummySubmission(code, filename)
         static_findings, metrics = engine.run_review(dummy_sub)
         
-        # Run AI analysis
+        # Run AI analysis with polyglot support
         ai_result = run_ai_review(code, static_findings, filename=filename)
         
         # Quality Scoring
@@ -95,17 +102,76 @@ class AnalyzeInstantView(APIView):
             grade = 'D'
         else:
             grade = 'F'
+
+        # Auto-record & persist review to Project so it immediately reflects on Dashboard and Compare!
+        project = None
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id, owner=request.user)
+            except (Project.DoesNotExist, ValueError):
+                pass
+                
+        if not project:
+            project = Project.objects.filter(owner=request.user).first()
+            if not project:
+                project = Project.objects.create(
+                    owner=request.user,
+                    name="Default Workspace",
+                    description="General project workspace for code reviews"
+                )
+
+        submission = CodeSubmission.objects.create(
+            project=project,
+            source_code=code,
+            file_name=filename,
+            submission_type='PASTE'
+        )
+
+        score_val = int(round(score))
+        review = Review.objects.create(
+            project=project,
+            code_submission=submission,
+            overall_score=score_val,
+            security_score=int(round(score_res.get('security_score', score_val))),
+            quality_score=score_val,
+            maintainability_score=int(round(score_res.get('maintainability_score', 100))),
+            complexity_score=int(round(score_res.get('complexity_score', 100))),
+            performance_score=int(round(score_res.get('performance_score', 100))),
+            best_practices_score=int(round(score_res.get('best_practices_score', 100))),
+            summary=ai_result.get('summary', 'Analysis completed.'),
+            suggested_code=ai_result.get('suggested_code', code)
+        )
+
+        for finding in all_findings:
+            ReviewIssue.objects.create(
+                review=review,
+                category=finding.get('category', 'STYLE'),
+                severity=finding.get('severity', 'INFO'),
+                title=finding.get('title', 'Issue'),
+                description=finding.get('message', ''),
+                recommendation=finding.get('recommendation', ''),
+                suggested_fix=finding.get('suggested_fix', ''),
+                line_number=finding.get('line_number'),
+                source=finding.get('analyzer', 'Static'),
+                rule_id=finding.get('rule_id', '')
+            )
             
         return Response({
+            "id": review.id,
+            "project_id": project.id,
+            "project_name": project.name,
+            "version": review.version,
+            "saved": True,
             "quality_score": score,
             "letter_grade": grade,
-            "summary": ai_result.get('summary', 'Instant analysis completed.'),
-            "suggested_code": ai_result.get('suggested_code', code),
-            "findings": all_findings
+            "summary": review.summary,
+            "suggested_code": review.suggested_code,
+            "findings": all_findings,
+            "message": f"Review #{review.id} recorded for {project.name}!"
         })
 
 class SubmitReviewView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -138,7 +204,7 @@ class SubmitReviewView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AuditRepositoryView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -234,7 +300,7 @@ class AuditRepositoryView(APIView):
         return Response({"id": review.id, "message": "Repository audited successfully"}, status=status.HTTP_201_CREATED)
 
 class CompareReviewsView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication, CsrfExemptSessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

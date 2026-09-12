@@ -10,6 +10,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     issues = ReviewIssueSerializer(many=True, read_only=True)
     version = serializers.IntegerField(read_only=True)
     filename = serializers.CharField(read_only=True)
+    letter_grade = serializers.CharField(read_only=True)
     
     class Meta:
         model = Review
@@ -17,6 +18,6 @@ class ReviewSerializer(serializers.ModelSerializer):
             'id', 'project', 'code_submission', 'overall_score',
             'security_score', 'quality_score', 'maintainability_score',
             'complexity_score', 'performance_score', 'best_practices_score',
-            'summary', 'created_at', 'issues', 'version', 'filename'
+            'summary', 'created_at', 'issues', 'version', 'filename', 'letter_grade'
         ]
         read_only_fields = fields

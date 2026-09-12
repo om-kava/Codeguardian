@@ -18,7 +18,7 @@
       <select id="compareProjectSelect" class="form-select">
         <option value="">-- Select Project --</option>
         {% for p in projects %}
-        <option value="{{ p.id }}">{{ p.name }} ({{ p.total_reviews }} reviews)</option>
+        <option value="{{ p.id }}" {% if selected_project_id == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }} ({{ p.total_reviews }} reviews)</option>
         {% endfor %}
       </select>
     </div>
@@ -118,14 +118,35 @@ document.getElementById('compareProjectSelect').addEventListener('change', async
   r1.innerHTML = '<option value="">-- Select Base Version --</option>';
   r2.innerHTML = '<option value="">-- Select New Version --</option>';
 
-  reviews.forEach((r, idx) => {
-    r1.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${r.quality_score} (${r.filename})</option>`;
-    r2.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${r.quality_score} (${r.filename})</option>`;
+  if (!Array.isArray(reviews) || reviews.length === 0) {
+    r1.innerHTML = '<option value="">-- No Reviews Found --</option>';
+    r2.innerHTML = '<option value="">-- No Reviews Found --</option>';
+    r1.disabled = true;
+    r2.disabled = true;
+    btn.disabled = true;
+    return;
+  }
+
+  reviews.forEach((r) => {
+    const score = (r.overall_score !== undefined) ? r.overall_score : r.quality_score;
+    r1.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${score} (${r.filename})</option>`;
+    r2.innerHTML += `<option value="${r.id}">v${r.version} - Score: ${score} (${r.filename})</option>`;
   });
 
   r1.disabled = false;
   r2.disabled = false;
   btn.disabled = false;
+
+  // Auto-select versions:
+  // Note: reviews are returned ordered by -created_at (reviews[0] is newest)
+  if (reviews.length >= 2) {
+    r1.value = reviews[1].id; // previous version as base
+    r2.value = reviews[0].id; // latest version as newer
+    // Auto trigger compare so the user gets instant feedback!
+    btn.click();
+  } else if (reviews.length === 1) {
+    r1.value = reviews[0].id;
+  }
 });
 
 document.getElementById('runCompareBtn').addEventListener('click', async () => {
@@ -194,6 +215,17 @@ document.getElementById('runCompareBtn').addEventListener('click', async () => {
     });
   }
 });
+
+// Auto-select project from query param if available or trigger if already selected
+const urlParams = new URLSearchParams(window.location.search);
+const paramProj = urlParams.get('project');
+const projSelect = document.getElementById('compareProjectSelect');
+if (paramProj && (!projSelect.value || projSelect.value != paramProj)) {
+  projSelect.value = paramProj;
+}
+if (projSelect.value) {
+  projSelect.dispatchEvent(new Event('change'));
+}
 </script>
 {% endblock %}
 {% endblock %}
